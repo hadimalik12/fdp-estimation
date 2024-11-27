@@ -3,7 +3,7 @@ import secrets
 import numpy as np
 from numpy.random import MT19937, RandomState
 
-from utils.utils import _ensure_2dim, DUMMY_CONSTANT
+from utils.utils import _ensure_2dim, DUMMY_CONSTANT, _ensure_np_array
 from estimator.basic import _GeneralNaiveEstimator
 
 
@@ -34,6 +34,10 @@ class GaussianDistSampler:
         seed = secrets.randbits(128)
         self.rng = RandomState(MT19937(seed))
     
+    def reset_randomness(self):
+        seed = secrets.randbits(128)
+        self.rng = RandomState(MT19937(seed))
+    
     def preprocess(self, num_samples):        
         samples_P = self.rng.multivariate_normal(self.P_mean, self.P_cov, size=num_samples)  
         samples_Q = self.rng.multivariate_normal(self.Q_mean, self.Q_cov, size=num_samples)  
@@ -44,6 +48,8 @@ class GaussianDistSampler:
     
     def gen_samples(self, eta, num_samples, reset = False, shuffle = False):
         assert eta > 0
+        self.reset_randomness()
+        
         if reset == True:
             samples_P, samples_Q = self.preprocess(num_samples)
         else:
@@ -81,11 +87,12 @@ class GaussianDistEstimator(_GeneralNaiveEstimator):
         self.test_sampler = GaussianDistSampler(kwargs)
         
         
+        
 def generate_params(num_train_samples = 10000, num_test_samples = 1000, mean0 = [0], mean1 = [1], cov0 = [1], cov1 = [1]):
-    mean0 = np.array(mean0)
-    mean1 = np.array(mean1)
-    cov0 = np.array(cov0)
-    cov1 = np.array(cov1)
+    mean0 = _ensure_np_array(mean0)
+    mean1 = _ensure_np_array(mean1)
+    cov0 = _ensure_np_array(cov0)
+    cov1 = _ensure_np_array(cov1)
     
     cov0, cov1 = _ensure_2dim(cov0, cov1)
     
