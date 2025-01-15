@@ -19,7 +19,6 @@ class _GeneralNaiveEstimator:
         self.test_sampler = None
         self.num_train_samples = kwargs["num_train_samples"]
         self.num_test_samples = kwargs["num_test_samples"]
-        self.distribution_settings = kwargs["dist"]
 
         self.output_ = None
         self.model = None
