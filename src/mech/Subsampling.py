@@ -3,7 +3,7 @@ import secrets
 import numpy as np
 from numpy.random import MT19937, RandomState
 
-from utils.utils import _ensure_2dim, DUMMY_CONSTANT
+from utils.utils import _ensure_2dim, DUMMY_CONSTANT, _ensure_np_array
 from estimator.basic import _GeneralNaiveEstimator
 
 class SubsamplingSampler:
@@ -22,6 +22,9 @@ class SubsamplingSampler:
         self.m = kwargs["ss_alg"]["m"]
         self.sigma = kwargs["ss_alg"]["sigma"]
         
+        self.mean = _ensure_np_array([0])
+        self.cov, _ = _ensure_2dim(_ensure_np_array([self.sigma**2]), self.mean)
+        
         assert np.isscalar(self.m) and np.isscalar(self.sigma)
         
         self.bot = -DUMMY_CONSTANT
@@ -36,12 +39,15 @@ class SubsamplingSampler:
         # use loop-free random permutation to get the num_samples of subset with size m
         random_keys = self.rng.random((num_samples, len(self.x0)))
         x0_samples = self.x0[np.argsort(random_keys, axis=1)][:, :self.m]
-        self.samples_P = np.sum(x0_samples, axis=1) + self.rng.normal(0, self.sigma, size=num_samples)
+        self.samples_P = np.sum(x0_samples, axis=1) + self.rng.multivariate_normal(self.mean, self.cov, size=num_samples).ravel()
+        # self.samples_P = np.sum(x0_samples, axis=1) + self.rng.normal(0, self.sigma, size=num_samples)
+        
         
         # Do the same thing for database x1
         random_keys = self.rng.random((num_samples, len(self.x1)))
         x1_samples = self.x1[np.argsort(random_keys, axis=1)][:, :self.m]
-        self.samples_Q = np.sum(x1_samples, axis=1) + self.rng.normal(0, self.sigma, size=num_samples)
+        # self.samples_Q = np.sum(x1_samples, axis=1) + self.rng.normal(0, self.sigma, size=num_samples)
+        self.samples_Q = np.sum(x1_samples, axis=1) + self.rng.multivariate_normal(self.mean, self.cov, size=num_samples).ravel()
             
              
         self.samples_P, self.samples_Q = _ensure_2dim(self.samples_P, self.samples_Q)
