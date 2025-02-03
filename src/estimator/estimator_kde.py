@@ -7,9 +7,9 @@ import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 from rpy2.robjects.vectors import FloatVector
 
-# Set R library path
-robjects.r('.libPaths("/home/snek/R/x86_64-pc-linux-gnu-library/4.1")')
-os.environ['R_LIBS_SITE'] = "/home/snek/R/x86_64-pc-linux-gnu-library/4.1"
+# # Set R library path
+# robjects.r('.libPaths("/home/snek/R/x86_64-pc-linux-gnu-library/4.1")')
+# os.environ['R_LIBS_SITE'] = "/home/snek/R/x86_64-pc-linux-gnu-library/4.1"
 
 # Import KernSmooth
 KernSmooth = importr("KernSmooth")
