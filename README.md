@@ -41,10 +41,23 @@ git clone https://github.com/stoneboat/fdp-estimation.git
 ```
 
 ### Set Up the R Environment
+1. **Install R**:
 Run the following command to install R:
-   ```bash
-   sudo apt install r-base=4.1.2 -y
-   ```
+```bash
+sudo apt install r-base=4.1.2 -y
+```
+
+2. **Install R package**:  
+Open R as a superuser by running:
+```bash
+sudo R
+```
+
+Then, install the package:
+```R
+install.packages("fdrtool")
+```
+
 
 ### Set Up the Python Environment
 1. **Install Python Virtual Environment Support**:
