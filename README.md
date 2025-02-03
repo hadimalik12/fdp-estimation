@@ -58,8 +58,7 @@ git clone https://github.com/stoneboat/fdp-estimation.git
    cd fDP-estimation
    pip install --upgrade -r requirements.txt
    ```
-   
-   
+
 ### Editor Configuration
 To edit the code, we recommend using JupyterLab. Use the following commands to configure:
 
