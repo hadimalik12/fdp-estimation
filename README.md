@@ -40,6 +40,12 @@ sudo apt install git  # Install Git if not already installed
 git clone https://github.com/stoneboat/fdp-estimation.git
 ```
 
+### Set Up the R Environment
+Run the following command to install R:
+   ```bash
+   sudo apt install r-base=4.1.2 -y
+   ```
+
 ### Set Up the Python Environment
 1. **Install Python Virtual Environment Support**:
    ```bash
