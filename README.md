@@ -47,17 +47,36 @@ git clone https://github.com/stoneboat/fdp-estimation.git
    sudo apt install python3-pip      # Install pip if not already installed
    ```
    
+2. **Create and Activate a Virtual Environment**:
+   ```bash
+   python3 -m venv fDP-estimation
+   source fDP-estimation/bin/activate
+   ```
+
+3. **Navigate to the Project Directory and Install Dependencies**:
+   ```bash
+   cd fDP-estimation
+   pip install --upgrade -r requirements.txt
+   ```
+   
+   
 ### Editor Configuration
 To edit the code, we recommend using JupyterLab. Use the following commands to configure:
 
 #### Install JupyterLab:
 ```bash
+pip install jupyter
 pip install jupyterlab
 ```
 
 #### Start JupyterLab:
 ```bash
-jupyter lab
+jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+```
+The added parameters allow external access, as Jupyter defaults to binding only to localhost. Also, note that if you get the error that command jupyter is not found, you might need to add the jupyter binary directory to your PATH by running the following commands:
+```bash
+export PATH=$HOME/.local/bin:$PATH
+source ~/.bashrc  # or source ~/.zshrc
 ```
 
 #### Display JupyterLab URLs:
