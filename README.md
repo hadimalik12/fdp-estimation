@@ -20,6 +20,33 @@ This repository demonstrates the following:
 - **Auditor for $f$-DP Violations:** Harnesses the strengths of both estimators and employs hypothesis testing theory/learning theory for robust auditing.
 - **Comprehensive Demonstrations:** Jupyter notebooks showcasing end-to-end usage on diverse mechanisms.
 
+## Installation
+
+The experiment is tested on a Google Virtual Machine instance with an Ubuntu 22.04.5 LTS system.
+
+### Update and Upgrade Your System
+First, ensure your system is up-to-date:
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+```
+
+### Update and Install Git
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install git  # Install Git if not already installed
+
+git clone https://github.com/stoneboat/fdp-estimation.git
+```
+
+### Set Up the Python Environment
+1. **Install Python Virtual Environment Support**:
+   ```bash
+   sudo apt install python3-venv  # Ensure the correct version of Python
+   sudo apt install python3-pip      # Install pip if not already installed
+   ```
+   
 ## Getting Started
 
 ### Prerequisites
