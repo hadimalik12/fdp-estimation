@@ -62,12 +62,6 @@ git clone https://github.com/stoneboat/fdp-estimation.git
 ### Editor Configuration
 To edit the code, we recommend using JupyterLab. Use the following commands to configure:
 
-#### Install JupyterLab:
-```bash
-pip install jupyter
-pip install jupyterlab
-```
-
 #### Start JupyterLab:
 ```bash
 jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
@@ -83,6 +77,12 @@ source ~/.bashrc  # or source ~/.zshrc
 jupyter lab list
 ```
 This will show the URL for accessing the JupyterLab web service.
+
+
+#### Stop JupyterLab:
+```bash
+jupyter lab stop
+```
 
 
 ## Getting Started
