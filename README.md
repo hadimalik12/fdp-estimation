@@ -58,6 +58,13 @@ git clone https://github.com/stoneboat/fdp-estimation.git
    cd fdp-estimation
    pip install --upgrade -r requirements.txt
    ```
+   
+4. **Install Jupyter Kernel for Running Jupyter Notebooks**:  
+   To register the virtual environment as a Jupyter kernel, run the following command:
+    ```bash
+   python -m ipykernel install --user --name=fdp-env --display-name "Python (fdp-env)"
+   ```
+   
 
 ### Editor Configuration
 To edit the code, we recommend using JupyterLab. Use the following commands to configure:
