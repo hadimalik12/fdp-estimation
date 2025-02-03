@@ -49,13 +49,13 @@ git clone https://github.com/stoneboat/fdp-estimation.git
    
 2. **Create and Activate a Virtual Environment**:
    ```bash
-   python3 -m venv fDP-estimation
-   source fDP-estimation/bin/activate
+   python3 -m venv fdp-env
+   source fdp-env/bin/activate
    ```
 
 3. **Navigate to the Project Directory and Install Dependencies**:
    ```bash
-   cd fDP-estimation
+   cd fdp-estimation
    pip install --upgrade -r requirements.txt
    ```
 
