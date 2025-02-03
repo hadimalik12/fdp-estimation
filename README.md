@@ -47,6 +47,26 @@ git clone https://github.com/stoneboat/fdp-estimation.git
    sudo apt install python3-pip      # Install pip if not already installed
    ```
    
+### Editor Configuration
+To edit the code, we recommend using JupyterLab. Use the following commands to configure:
+
+#### Install JupyterLab:
+```bash
+pip install jupyterlab
+```
+
+#### Start JupyterLab:
+```bash
+jupyter lab
+```
+
+#### Display JupyterLab URLs:
+```bash
+jupyter lab list
+```
+This will show the URL for accessing the JupyterLab web service.
+
+
 ## Getting Started
 
 ### Prerequisites
