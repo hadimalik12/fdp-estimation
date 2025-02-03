@@ -1,38 +1,36 @@
-
 # fdp-estimation
-This repository provides a proof-of-concept implementation of the black-box f-differential privacy (fDP) estimator as introduced in our forthcoming paper. (The paper will be made publicly available soon.)
+
+This repository provides a proof-of-concept implementation of the black-box f-differential privacy (fDP) estimato/auditor as introduced in our paper **General-Purpose $f$-DP Estimation and Auditing in a Black-Box Setting**. The arXiv version will be uploaded soon.
 
 ## Overview
 
-**f-Differential Privacy (fDP)** is a robust mathematical framework that quantifies privacy guarantees in data analysis. However, deriving privacy statements analytically can be challenging when dealing with complex or non-standard mechanisms. Our work introduces a general black-box approach for estimating the privacy function f. Instead of relying on explicit distributions or proofs, the estimator estimates privacy parameters by interacting with the mechanism as an oracle, observing only its inputs and outputs. Our estimator produces **uniformly consistent** estimate with **theoretical accuracy guarantee**. 
+Our project features two new f-DP estimators:
 
-This repository demonstrates two implementations of the black-box estimator framework:
-1. A **k-Nearest Neighbor (kNN)** classifier-based estimator.
-2. A **Perturbed Likelihood Ratio(PRLR)** test-based estimator.
+1. A **Perturbed Likelihood Ratio (PRLR)** test-based estimator.
+2. A **Classifier-based** estimator (for example, kNN).
 
-Both estimators are demonstrated on well-known DP mechanisms such as the **Gaussian Mechanism** and the **Laplacian Mechanism**, allowing you to visualize and understand their **fDP privacy spectrums**.
+Both these approaches can provide an estimate of the f-differential privacy curve. On top of these estimators, we offer an **auditor** that merges the above techniques to statistically test an $f$-DP statement with theoretical guarantees—allowing one to either reject or fail to reject a claim of $f$-DP based on both hypothesis testing theory and learning theory.
 
-## Key Features
+This repository demonstrates the following:
 
-- **Black-box Estimation:**  
-  Requires minimal knowledge of the underlying distribution or code structure of the mechanism.  
-- **Classifier-based Framework:**  
-  Provides flexibility to use different binary classification algorithms. In addition to kNN, other classifiers can be seamlessly integrated.  
-- **Broad Applicability:**  
-  Supports the evaluation of standard and complex DP mechanisms, helping to identify subtle bugs or test privacy properties.  
-- **Comprehensive Demonstrations:**  
-  Includes a series of Jupyter notebooks that provide end-to-end demonstrations for privacy estimation on various tested algorithms.
-
+- **Black-box Estimation of $f$-DP:** Minimal prior knowledge of the algorithm under investigation.
+- **Classifier-based Framework:** Flexibility to use different binary classification algorithms. (kNN is included, but others can be integrated.)
+- **PRLR-based Estimator:** An alternative approach rooted in likelihood ratio testing.
+- **Broad Applicability:** Evaluation of standard and complex DP mechanisms (e.g., Gaussian, Laplacian) to expose subtle bugs or test privacy properties.
+- **Auditor for $f$-DP Violations:** Harnesses the strengths of both estimators and employs hypothesis testing theory/learning theory for robust auditing.
+- **Comprehensive Demonstrations:** Jupyter notebooks showcasing end-to-end usage on diverse mechanisms.
 
 ## Getting Started
 
 ### Prerequisites
+
 - **Python Version:** Python 3.8+ is recommended.
 - **Required Libraries:** Install the following common data science and machine learning libraries:
   - `numpy`, `scipy`, `scikit-learn`, `matplotlib`
   - `torch` (for Neural Network-based classifiers)
 
 ### Running the Examples
+
 To explore the functionality of the estimators and learn how to run the code, navigate to the `notebooks` folder and execute the provided Jupyter notebooks. These examples demonstrate the interface of the estimators and their application to various mechanisms.
 
 ### Customization
