@@ -44,8 +44,10 @@ git clone https://github.com/stoneboat/fdp-estimation.git
 1. **Install R**:
 Run the following command to install R:
 ```bash
-sudo apt install r-base=4.1.2 -y
+sudo apt install r-base -y
 ```
+Note that our test version is 4.1.2.
+
 
 2. **Install R package**:  
 Open R as a superuser by running:
