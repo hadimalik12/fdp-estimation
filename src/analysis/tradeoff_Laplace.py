@@ -44,3 +44,16 @@ def Laplace_compute_tradeoff_curve(eta):
     beta[conditions[4]] = 0
     
     return alpha, beta
+
+
+# Define the Laplace curve function
+def Laplace_curve(alpha):
+    mu_2 = 1
+    if alpha < np.exp(-mu_2) / 2:
+        return 1 - np.exp(mu_2) * alpha
+    elif np.exp(-mu_2) / 2 <= alpha <= 1 / 2:
+        return np.exp(-mu_2) / (4 * alpha)
+    elif alpha > 1 / 2:
+        return np.exp(-mu_2) * (1 - alpha)
+    else:
+        return 0

@@ -5,6 +5,7 @@ from numpy.random import MT19937, RandomState
 
 from utils.utils import _ensure_2dim, DUMMY_CONSTANT
 from estimator.basic import _GeneralNaiveEstimator
+from estimator.ptlr import _PTLREstimator
 
 class LapDistSampler:
     """
@@ -71,22 +72,33 @@ class LapDistSampler:
             labels = labels[ids]
             
         return {'X': samples, 'y': labels}
-    
 
+    
 class LapDistEstimator(_GeneralNaiveEstimator):
     def __init__(self, kwargs):
         super().__init__(kwargs=kwargs)
         self.train_sampler = LapDistSampler(kwargs)
         self.test_sampler = LapDistSampler(kwargs)
+
+        
+class LapPTLREstimator(_PTLREstimator):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.sampler = LapDistSampler(kwargs)
     
     
-def generate_params(num_train_samples = 10000, num_test_samples = 1000, mean0 = 0, mean1 = 1, scale0 = 1, scale1 = 1):    
+def generate_params(num_samples = 10000, num_train_samples = 10000, num_test_samples = 1000, mean0 = 0, mean1 = 1, scale0 = 1, scale1 = 1, h=0.1):    
     kwargs = {
+        "h": h,
         "dist":{
             "mean0": mean0, "scale0": scale0,
             "mean1": mean1, "scale1": scale1
         },
+        "num_samples" : num_samples,
         "num_train_samples" : num_train_samples,
         "num_test_samples" : num_test_samples
     }
     return kwargs
+
+        
+        
