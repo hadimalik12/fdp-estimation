@@ -5,7 +5,7 @@ from numpy.random import MT19937, RandomState
 
 from utils.utils import _ensure_2dim, DUMMY_CONSTANT, _ensure_np_array
 from estimator.basic import _GeneralNaiveEstimator
-
+from estimator.ptlr import _PTLREstimator
 
 class GaussianDistSampler:
     """
@@ -85,10 +85,16 @@ class GaussianDistEstimator(_GeneralNaiveEstimator):
         super().__init__(kwargs=kwargs)
         self.train_sampler = GaussianDistSampler(kwargs)
         self.test_sampler = GaussianDistSampler(kwargs)
+
+
+class GaussianPTLREstimator(_PTLREstimator):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.sampler = GaussianDistSampler(kwargs)
         
         
         
-def generate_params(num_train_samples = 10000, num_test_samples = 1000, mean0 = [0], mean1 = [1], cov0 = [1], cov1 = [1]):
+def generate_params(num_samples = 10000,num_train_samples = 10000, num_test_samples = 1000, mean0 = [0], mean1 = [1], cov0 = [1], cov1 = [1], h=0.1):
     mean0 = _ensure_np_array(mean0)
     mean1 = _ensure_np_array(mean1)
     cov0 = _ensure_np_array(cov0)
@@ -97,10 +103,12 @@ def generate_params(num_train_samples = 10000, num_test_samples = 1000, mean0 = 
     cov0, cov1 = _ensure_2dim(cov0, cov1)
     
     kwargs = {
+        "h": h,
         "dist":{
             "mean0": mean0, "cov0": cov0,
             "mean1": mean1, "cov1": cov1
         },
+        "num_samples" : num_samples,
         "num_train_samples" : num_train_samples,
         "num_test_samples" : num_test_samples
     }
