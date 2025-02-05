@@ -42,7 +42,7 @@ def knn_baybox_acc_bound_1d(n, gamma):
     return result
 
 
-def create_plot(omega, alpha_estimate, beta_estimate, fine_points, claimed_curve, alpha, beta, the_alpha, the_beta, filename="plot.png"):
+def create_plot(omega, alpha_estimate, beta_estimate, fine_points, alpha, beta, the_alpha, the_beta, filename="plot.png", claimed_curve=Gaussian_curve):
     """
     Create a plot with a Gaussian curve, KDE scatter, and a highlighted critical region.
 
@@ -60,7 +60,8 @@ def create_plot(omega, alpha_estimate, beta_estimate, fine_points, claimed_curve
     """
     plt.figure(figsize=(8, 8))  # Adjust size for better presentation
 
-    points = np.array([claimed_curve(point) for point in fine_points])
+    # points = np.array([claimed_curve(point) for point in fine_points])
+    points = claimed_curve(fine_points)
 
     plt.plot(fine_points, points, color='blue', label=r'Claimed Curve $T^{(0)}$', linewidth=2)
 
