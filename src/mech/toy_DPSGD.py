@@ -5,6 +5,7 @@ from numpy.random import MT19937, RandomState
 
 from utils.utils import _ensure_2dim, DUMMY_CONSTANT
 from estimator.basic import _GeneralNaiveEstimator
+from estimator.ptlr import _PTLREstimator
 
 class toy_DPSGDSampler:
     """
@@ -97,10 +98,17 @@ class toy_DPSGDEstimator(_GeneralNaiveEstimator):
         super().__init__(kwargs=kwargs)
         self.train_sampler = toy_DPSGDSampler(kwargs)
         self.test_sampler = toy_DPSGDSampler(kwargs)
+
+
+class toy_DPSGDPTLREstimator(_PTLREstimator):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.sampler = toy_DPSGDSampler(kwargs)
     
     
-def generate_params(num_train_samples = 10000, num_test_samples = 1000, x0 = np.zeros(10, dtype=np.float64), x1 = np.array([1] + [0] * 9, dtype=np.float64)):    
+def generate_params(num_samples = 10000, num_train_samples = 10000, num_test_samples = 1000, x0 = np.zeros(10, dtype=np.float64), x1 = np.array([1] + [0] * 9, dtype=np.float64), h=0.1):    
     kwargs = {
+        "h": h,
         "dataset":{
             "x0": x0, 
             "x1": x1
@@ -112,6 +120,7 @@ def generate_params(num_train_samples = 10000, num_test_samples = 1000, x0 = np.
             "eta":0.2,
             "sigma":0.2
         },
+        "num_samples" : num_samples,
         "num_train_samples" : num_train_samples,
         "num_test_samples" : num_test_samples
     }
