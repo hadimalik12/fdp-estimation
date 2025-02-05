@@ -6,6 +6,8 @@ from numpy.random import MT19937, RandomState
 from utils.utils import _ensure_2dim, DUMMY_CONSTANT, _ensure_np_array
 from estimator.basic import _GeneralNaiveEstimator
 from estimator.ptlr import _PTLREstimator
+from auditor.basic import _GeneralNaiveAuditor
+from analysis.tradeoff_Gaussian import Gaussian_curve
 
 class GaussianDistSampler:
     """
@@ -91,10 +93,17 @@ class GaussianPTLREstimator(_PTLREstimator):
     def __init__(self, kwargs):
         super().__init__(kwargs=kwargs)
         self.sampler = GaussianDistSampler(kwargs)
+
+
+class GaussianAuditor(_GeneralNaiveAuditor):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.point_finder = GaussianPTLREstimator(kwargs)
+        self.point_estimator = GaussianDistEstimator(kwargs)
         
         
         
-def generate_params(num_samples = 10000,num_train_samples = 10000, num_test_samples = 1000, mean0 = [0], mean1 = [1], cov0 = [1], cov1 = [1], h=0.1):
+def generate_params(num_samples = 100000,num_train_samples = 10000, num_test_samples = 100000, mean0 = [0], mean1 = [1], cov0 = [1], cov1 = [1], h=0.1, claimed_f=Gaussian_curve, eta_max=15, gamma=0.05):
     mean0 = _ensure_np_array(mean0)
     mean1 = _ensure_np_array(mean1)
     cov0 = _ensure_np_array(cov0)
@@ -110,6 +119,9 @@ def generate_params(num_samples = 10000,num_train_samples = 10000, num_test_samp
         },
         "num_samples" : num_samples,
         "num_train_samples" : num_train_samples,
-        "num_test_samples" : num_test_samples
+        "num_test_samples" : num_test_samples,
+        "claimed_f" : claimed_f,
+        "eta_max" : eta_max,
+        "gamma" : gamma
     }
     return kwargs

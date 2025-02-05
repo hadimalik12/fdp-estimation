@@ -30,3 +30,10 @@ def acc_evaluate(thm_tradeoff_func, estimator_cls, estimator_params, eta_array, 
     # Detach the file handler after function execution
     logger.removeHandler(file_handler)
     file_handler.close()
+
+
+# This is corresponding to the theoretical guarantee of Baybox kNN estimator; given in Thm 5.2 in our paper
+def knn_baybox_acc_bound_1d(n, gamma):
+    c_d = 3.8637  # Given value of c_d
+    result = 12 * np.sqrt((2 * c_d ** 2 / n) * np.log(4 / gamma))
+    return result
