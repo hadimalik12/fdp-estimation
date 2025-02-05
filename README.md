@@ -4,10 +4,13 @@ This repository provides a proof-of-concept implementation of the black-box f-di
 
 ## Overview
 
-Our project features two new f-DP estimators:
+This project introduces two novel estimators for $f$-DP:
 
-1. A **Perturbed Likelihood Ratio (PRLR)** test-based estimator.
-2. A **Classifier-based** estimator (for example, kNN).
+1. **Perturbed Likelihood Ratio (PRLR) Test-Based Estimator**  
+   Leverages a perturbed likelihood ratio test approach (Algorithm 1 in our paper) to estimate the $f$-differential privacy curve.
+
+2. **Classifier-Based Estimator (Baybox Estimator)**  
+   Uses a binary classification approach (e.g., k-Nearest Neighbors) to approximate privacy guarantees. This method, referred to as the Baybox estimator, is detailed in Algorithm 2 of our paper.
 
 Both these approaches can provide an estimate of the f-differential privacy curve. On top of these estimators, we offer an **auditor** that merges the above techniques to statistically test an $f$-DP statement with theoretical guarantees—allowing one to either reject or fail to reject a claim of $f$-DP based on both hypothesis testing theory and learning theory.
 
@@ -115,21 +118,23 @@ jupyter lab stop
 
 ## Getting Started
 
-### Prerequisites
-
-- **Python Version:** Python 3.8+ is recommended.
-- **Required Libraries:** Install the following common data science and machine learning libraries:
-  - `numpy`, `scipy`, `scikit-learn`, `matplotlib`
-  - `torch` (for Neural Network-based classifiers)
-
 ### Running the Examples
 
-To explore the functionality of the estimators and learn how to run the code, navigate to the `notebooks` folder and execute the provided Jupyter notebooks. These examples demonstrate the interface of the estimators and their application to various mechanisms.
+To learn how to use the API for the estimator and auditor, navigate to the `notebooks` folder. This directory contains three demonstration packages, each corresponding to a different component: the PTLR-based estimator, the classifier-based estimator, and the auditor. Within each folder, we provide example scripts illustrating how to call the API for estimation and inference tasks. Additionally, we demonstrate how to validate estimation and inference results, perform accuracy analysis, and compare outcomes against theoretical expectations.
 
 ### Customization
 
-- **Adding New Mechanisms:**  
-  To extend the framework to support a new mechanism, implement it in the `src/mech/` directory and create a corresponding estimator in `src/estimator/`.
+One of the key advantages of our estimation and auditing framework is its black-box nature, allowing users to experiment with different classifiers and mechanisms in a plug-and-play manner. Below, we discuss how to customize and extend the framework:
+
+- **Adding New Mechanisms:**
+  - To integrate a new mechanism, implement it in the `src/mech/` directory. Specifically, you need to define a mechanism sampler to generate independent samples of the mechanism's output, along with two mechanism-specific estimators—one based on the PTLR-based estimator and another based on the classifier-based estimator. Additionally, a mechanism-specific auditor should be provided.
+  - The only part that users need to implement is the mechanism sampler itself; all other components can be instantiated using pre-defined abstract classes. 
+  - For example, consider the Gaussian mechanism, implemented in `GaussianDist.py` under `src/mech/`. This file contains four key classes:
+    - `GaussianDistSampler`: Generates independent samples of the Gaussian mechanism's output.
+    - `GaussianDistEstimator`: Implements the classification-based estimator for the Gaussian mechanism.
+    - `GaussianPTLREstimator`: Implements the PTLR-based estimator for the Gaussian mechanism.
+    - `GaussianAuditor`: Implements the auditor for testing $f$-DP claims.
+  - Users only need to define the `preprocess` function in `GaussianDistSampler`, which is responsible for generating $n$ independent samples. The remaining classes can be instantiated using the abstract classes `_GeneralNaiveEstimator`, `_PTLREstimator`, and `_GeneralNaiveAuditor`, requiring only the concrete sampler (e.g., `GaussianDistSampler`).
 
 - **Using Alternative Classifiers:**  
   The framework is modular, allowing you to integrate custom classifiers. Follow the interface defined in `src/classifier/` to add your own classifier.
