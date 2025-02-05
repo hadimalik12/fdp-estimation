@@ -46,6 +46,8 @@ class _GeneralNaiveAuditor:
         ## Step 2: Extract alpha and beta values
         alpha = filtered_data['alpha']
         beta = filtered_data['beta']
+        self.output_["scan_alpha"] = alpha
+        self.output_["scan_beta"] = beta
 
         ## Step 3: Compute maximum deviation
         deviation_matrix = np.array(beta - self.claimed_f(alpha))
