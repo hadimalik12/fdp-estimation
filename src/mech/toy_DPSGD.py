@@ -6,6 +6,9 @@ from numpy.random import MT19937, RandomState
 from utils.utils import _ensure_2dim, DUMMY_CONSTANT
 from estimator.basic import _GeneralNaiveEstimator
 from estimator.ptlr import _PTLREstimator
+from auditor.basic import _GeneralNaiveAuditor
+from analysis.tradeoff_toyDPSGD import toyDPSGD_compute_tradeoff_curve
+from functools import partial
 
 class toy_DPSGDSampler:
     """
@@ -104,9 +107,16 @@ class toy_DPSGDPTLREstimator(_PTLREstimator):
     def __init__(self, kwargs):
         super().__init__(kwargs=kwargs)
         self.sampler = toy_DPSGDSampler(kwargs)
+
     
-    
-def generate_params(num_samples = 10000, num_train_samples = 10000, num_test_samples = 1000, x0 = np.zeros(10, dtype=np.float64), x1 = np.array([1] + [0] * 9, dtype=np.float64), h=0.1):    
+class toy_DPSGDPAuditor(_GeneralNaiveAuditor):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.point_finder = toy_DPSGDPTLREstimator(kwargs)
+        self.point_estimator = toy_DPSGDEstimator(kwargs)
+
+
+def generate_params(num_samples = 10000, num_train_samples = 10000, num_test_samples = 1000, x0 = np.zeros(10, dtype=np.float64), x1 = np.array([1] + [0] * 9, dtype=np.float64), h=0.1, claimed_f=toyDPSGD_compute_tradeoff_curve, eta_max=15, gamma=0.05):    
     kwargs = {
         "h": h,
         "dataset":{
@@ -122,6 +132,10 @@ def generate_params(num_samples = 10000, num_train_samples = 10000, num_test_sam
         },
         "num_samples" : num_samples,
         "num_train_samples" : num_train_samples,
-        "num_test_samples" : num_test_samples
+        "num_test_samples" : num_test_samples,
+        "claimed_f" : claimed_f,
+        "eta_max" : eta_max,
+        "gamma" : gamma
     }
+    kwargs["claimed_f"] = partial(toyDPSGD_compute_tradeoff_curve, kwargs=kwargs)
     return kwargs
