@@ -5,6 +5,7 @@ from numpy.random import MT19937, RandomState
 
 from utils.utils import _ensure_2dim, DUMMY_CONSTANT, _ensure_np_array
 from estimator.basic import _GeneralNaiveEstimator
+from estimator.ptlr import _PTLREstimator
 
 class SubsamplingSampler:
     """
@@ -94,18 +95,26 @@ class SubsamplingEstimator(_GeneralNaiveEstimator):
         super().__init__(kwargs=kwargs)
         self.train_sampler = SubsamplingSampler(kwargs)
         self.test_sampler = SubsamplingSampler(kwargs)
+
+
+class SubsamplingPTLREstimator(_PTLREstimator):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.sampler = SubsamplingSampler(kwargs)
     
     
-def generate_params(num_train_samples = 10000, num_test_samples = 1000, x0 = np.zeros(10, dtype=np.float64), x1 = np.array([1] + [0] * 9, dtype=np.float64)):    
+def generate_params(num_samples = 10000, num_train_samples = 10000, num_test_samples = 1000, x0 = np.zeros(10, dtype=np.float64), x1 = np.array([1] + [0] * 9, dtype=np.float64), h=0.1):    
     kwargs = {
+        "h": h,
         "dataset":{
             "x0": x0, 
             "x1": x1
         },
         "ss_alg":{
             "m":5,
-            "sigma":0.2
+            "sigma":1
         },
+        "num_samples" : num_samples,
         "num_train_samples" : num_train_samples,
         "num_test_samples" : num_test_samples
     }
