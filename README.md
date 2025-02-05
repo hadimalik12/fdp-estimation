@@ -136,8 +136,12 @@ One of the key advantages of our estimation and auditing framework is its black-
     - `GaussianAuditor`: Implements the auditor for testing $f$-DP claims.
   - Users only need to define the `preprocess` function in `GaussianDistSampler`, which is responsible for generating $n$ independent samples. The remaining classes can be instantiated using the abstract classes `_GeneralNaiveEstimator`, `_PTLREstimator`, and `_GeneralNaiveAuditor`, requiring only the concrete sampler (e.g., `GaussianDistSampler`).
 
-- **Using Alternative Classifiers:**  
-  The framework is modular, allowing you to integrate custom classifiers. Follow the interface defined in `src/classifier/` to add your own classifier.
+- **Integrating Alternative Classifiers:**
+  - Our modular framework supports seamless integration of custom classifiers. To use the Baybox estimator with a different binary classification algorithm, simply implement a new classifier following the interface defined in `src/classifier/`. Ensure that the required methods are properly defined to maintain compatibility with the framework.
 
-- **Parameter Tuning:**  
-  Experiment with different parameters, including classifier settings, the number of samples, input database configurations, and other hyperparameters. The Jupyter notebooks provide an interactive environment to observe how these adjustments impact estimation quality.
+- **Parameter Tuning:**
+  - Users can fine-tune various parameters, such as classifier configurations, sample sizes, and database settings, to optimize estimation quality. The Jupyter notebooks provide an interactive platform to experiment with these adjustments and observe their impact. Additionally, users can refer to the `generate_params` function within each mechanism file to identify available tunable parameters and explore potential configurations.
+
+## Contributing
+
+We welcome contributions! If you have suggestions for improvements, new features, or find any issues, please open an issue or submit a pull request.
