@@ -7,10 +7,10 @@ This repository provides a proof-of-concept implementation of the black-box f-di
 This project introduces two novel estimators for $f$-DP:
 
 1. **Perturbed Likelihood Ratio (PTLR) Test-Based Estimator**  
-   Leverages a perturbed likelihood ratio test approach (Algorithm 1 in our paper) to estimate the $f$-differential privacy curve.
+   Leverages a perturbed likelihood ratio test approach (Algorithm 3 in our paper) to estimate the $f$-differential privacy curve.
 
 2. **Classifier-Based Estimator (Baybox Estimator)**  
-   Uses a binary classification approach (e.g., k-Nearest Neighbors) to approximate privacy guarantees. This method, referred to as the Baybox estimator, is detailed in Algorithm 2 of our paper.
+   Uses a binary classification approach (e.g., k-Nearest Neighbors) to approximate privacy guarantees. This method, referred to as the Baybox estimator, is detailed in Algorithm 1 of our paper.
 
 Both these approaches can provide an estimate of the f-differential privacy curve. On top of these estimators, we offer an **auditor** that merges the above techniques to statistically test an $f$-DP statement with theoretical guarantees—allowing one to either reject or fail to reject a claim of $f$-DP based on both hypothesis testing theory and learning theory.
 
@@ -19,7 +19,7 @@ This repository demonstrates the following:
 - **Black-box Estimation of $f$-DP:** Minimal prior knowledge of the algorithm under investigation.
 - **Classifier-based Framework:** Flexibility to use different binary classification algorithms. (kNN is included, but others can be integrated.)
 - **PTLR-based Estimator:** An alternative approach rooted in likelihood ratio testing.
-- **Broad Applicability:** Evaluation of standard and complex DP mechanisms (e.g., Gaussian, Laplacian) to expose subtle bugs or test privacy properties.
+- **Broad Applicability:** Evaluation of standard and complex DP mechanisms (e.g., Gaussian, Laplacian, DP-SGD) to expose subtle bugs or test privacy properties.
 - **Auditor for $f$-DP Violations:** Harnesses the strengths of both estimators and employs hypothesis testing theory/learning theory for robust auditing.
 - **Comprehensive Demonstrations:** Jupyter notebooks showcasing end-to-end usage on diverse mechanisms.
 
