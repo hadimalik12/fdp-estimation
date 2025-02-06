@@ -6,7 +6,7 @@ This repository provides a proof-of-concept implementation of the black-box f-di
 
 This project introduces two novel estimators for $f$-DP:
 
-1. **Perturbed Likelihood Ratio (PRLR) Test-Based Estimator**  
+1. **Perturbed Likelihood Ratio (PTLR) Test-Based Estimator**  
    Leverages a perturbed likelihood ratio test approach (Algorithm 1 in our paper) to estimate the $f$-differential privacy curve.
 
 2. **Classifier-Based Estimator (Baybox Estimator)**  
@@ -18,7 +18,7 @@ This repository demonstrates the following:
 
 - **Black-box Estimation of $f$-DP:** Minimal prior knowledge of the algorithm under investigation.
 - **Classifier-based Framework:** Flexibility to use different binary classification algorithms. (kNN is included, but others can be integrated.)
-- **PRLR-based Estimator:** An alternative approach rooted in likelihood ratio testing.
+- **PTLR-based Estimator:** An alternative approach rooted in likelihood ratio testing.
 - **Broad Applicability:** Evaluation of standard and complex DP mechanisms (e.g., Gaussian, Laplacian) to expose subtle bugs or test privacy properties.
 - **Auditor for $f$-DP Violations:** Harnesses the strengths of both estimators and employs hypothesis testing theory/learning theory for robust auditing.
 - **Comprehensive Demonstrations:** Jupyter notebooks showcasing end-to-end usage on diverse mechanisms.
