@@ -144,4 +144,4 @@ One of the key advantages of our estimation and auditing framework is its black-
 
 ## Contributing
 
-We welcome contributions! If you have suggestions for improvements, new features, or find any issues, please open an issue or submit a pull request.
+We welcome contributions! If you have suggestions for improvements, new features, or find any issues, please open an issue or submit a pull request. For questions, feel free to send them to: martin.dunsche@rub.de or ywei368@gatech.edu 
