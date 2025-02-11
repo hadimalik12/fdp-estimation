@@ -28,7 +28,7 @@ class _GeneralNaiveAuditor:
         assert self.point_finder is not None, "ERR: you need to use a super class or to define the point_finder first" 
         assert self.point_estimator is not None, "ERR: you need to use a super class or to define the point_estimator first"
 
-    def check_violation(self, beta_estimate, omega, alpha_estimate):
+    def check_violation(self, beta_estimate, alpha_estimate, omega):
         if beta_estimate + omega < self.claimed_f(alpha_estimate + omega):
             return "Violation"
         else:
