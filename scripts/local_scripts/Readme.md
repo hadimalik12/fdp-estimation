@@ -1,39 +1,81 @@
 # Local Scripts
 
-This directory contains utility scripts for setting up and managing your Python environment on the cluster.
+This guide provides instructions for setting up your development environment on an HPC cluster. It shows how to configure the workspace for optimal performance using local storage and enable seamless interactive development through VS Code (Cursor). 
+---
 
-## cluster_install.sh
+## Environment Setup in `/tmp`
 
-### Purpose
+In many HPC clusters, the `/tmp` directory is local to each compute node, providing significantly faster storage access compared to home directories or network-mounted storage. Setting up your Python environment (e.g., `fdp-env`) in `/tmp` offers several advantages:
+- **Enhanced package import speed and I/O operations**
+- **Decreased load on shared filesystems**
+- **Improved performance for Jupyter Lab and other interactive tools**
 
-The `cluster_install.sh` script automates the creation and setup of a Python virtual environment (`fdp-env`) under the `/tmp` directory on your cluster node. It installs essential tools such as JupyterLab and registers the environment as a Jupyter kernel.
+**Important:** The `/tmp` directory is usually cleared after your job concludes or the node reboots. Therefore, you will need to reinstall the environment for each new session. If you wish to install the environment permanently, modify the script installation command as needed.
 
-### Why Install Under `/tmp`?
+---
 
-On many HPC clusters, the `/tmp` directory is located on local storage for each compute node. This means:
-- **Faster Storage Access:** Installing and running your virtual environment from `/tmp` can be significantly faster than using your home directory or network-mounted storage, especially for I/O-intensive tasks like package imports and Jupyter operations.
-- **Reduced Network Load:** Using local storage helps avoid overloading shared network filesystems, which can improve performance for both you and other users.
+## Workflow: Using VS Code and Jupyter Lab on a Compute Node
 
-**Note:** `/tmp` is typically cleaned after your job ends or the node is rebooted, so you may need to reinstall the environment for each new session.
+### 1. SSH to the Login Node
 
-### Usage
+Use your SSH key to connect to the cluster's login node:
+```bash
+ssh cluster-login
+```
+*(Replace `cluster-login` with your actual login node alias.)*
 
+---
+
+### 2. Request an Interactive Compute Node
+
+Run:
+```bash
+sinteractive -A your_account_name -n 12 -t 12:00:00
+```
+where `-n 12`: Number of CPU cores and `-t 12:00:00`: Walltime (12 hours)
+
+---
+
+### 3. Find Your Compute Node Name
+
+Check your job and node with:
+```bash
+squeue -u $USER
+```
+*(Replace $USER with your username.)*
+
+---
+
+### 4. Set Up SSH Config for Two-Hop Access
+
+Edit your `~/.ssh/config` to include:
+
+Host login-alias
+    HostName your-login-hostname
+    User your-username
+    IdentityFile /path/to/your/ssh_key
+
+Host compute-alias
+    HostName your-compute-hostname
+    User your-username
+    ProxyJump login-alias
+    IdentityFile /path/to/your/ssh_key
+---
+
+### 5. Connect to the Compute Node in VS Code
+
+- Open a new VS Code window.
+- Use the Remote-SSH extension to connect to `compute-alias`.
+- **Important:** Keep your original SSH session open, as closing it may terminate your interactive job.
+
+---
+
+## Script Usage
+
+The `cluster_install.sh` script in this directory automates the creation and setup of the `fdp-env` virtual environment under `/tmp` on your compute node.
+
+**To use:**
 ```bash
 chmod +x cluster_install.sh
 ./cluster_install.sh
 ```
-
-This will:
-- Create the `fdp-env` virtual environment in `/tmp` (if it does not already exist)
-- Activate the environment
-- Install/upgrade pip, JupyterLab, and ipykernel
-- Register the kernel for Jupyter
-
-To start Jupyter Lab after setup:
-```bash
-source /tmp/fdp-env/bin/activate
-jupyter lab
-```
-```
-
-Let me know if you want to add more details or sections!
