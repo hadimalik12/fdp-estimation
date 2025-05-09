@@ -2,7 +2,6 @@
 fig/
 log/
 data/
-scripts/local_scripts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
