@@ -1,6 +1,7 @@
-# Local Scripts
+# Local Scripts 
+---
+This guide provides instructions for setting up your development environment on an HPC cluster. It shows how to configure the workspace for optimal performance using local storage and enable seamless interactive development through VS Code (Cursor).
 
-This guide provides instructions for setting up your development environment on an HPC cluster. It shows how to configure the workspace for optimal performance using local storage and enable seamless interactive development through VS Code (Cursor). 
 ---
 
 ## Environment Setup in `/tmp`
