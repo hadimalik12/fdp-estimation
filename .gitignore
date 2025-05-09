@@ -2,6 +2,7 @@
 fig/
 log/
 data/
+scripts/local_scripts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -63,6 +64,7 @@ cover/
 
 # Django stuff:
 *.log
+
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
