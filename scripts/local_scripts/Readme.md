@@ -51,6 +51,7 @@ squeue -u $USER
 
 Edit your `~/.ssh/config` to include:
 
+```bash
 Host login-alias
     HostName your-login-hostname
     User your-username
@@ -61,7 +62,7 @@ Host compute-alias
     User your-username
     ProxyJump login-alias
     IdentityFile /path/to/your/ssh_key
----
+```
 
 ### 5. Connect to the Compute Node in VS Code
 
@@ -77,6 +78,7 @@ The `cluster_install.sh` script in this directory automates the creation and set
 
 **To use:**
 ```bash
+chmod +x r-bell-kernel-install.sh
 chmod +x cluster_install.sh
 ./cluster_install.sh
 ```
