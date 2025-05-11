@@ -19,11 +19,42 @@ In many HPC clusters, the `/tmp` directory is local to each compute node, provid
 
 ### 1. SSH to the Login Node
 
-Use your SSH key to connect to the cluster's login node:
+Connect to the cluster's login node using your SSH key:
 ```bash
 ssh cluster-login
 ```
 *(Replace `cluster-login` with your actual login node alias.)*
+
+#### Keeping SLURM Sessions Alive with tmux
+
+To maintain your cluster-computation session after disconnecting from the initial login, use tmux:
+
+1. Create a new tmux session:
+```bash
+tmux new -s mysession
+```
+
+2. Detach from tmux (safe to disconnect SSH):
+```bash
+Ctrl + b, then d
+```
+
+3. Reconnect later from any terminal:
+```bash
+ssh cluster-login
+tmux attach -t mysession
+```
+
+4. After completing your computation, terminate the tmux session:
+```bash
+# Option 1: From outside the session
+ssh cluster-login
+tmux ls
+tmux kill-session -t mysession
+
+# Option 2: From inside the session
+exit
+```
 
 ---
 
