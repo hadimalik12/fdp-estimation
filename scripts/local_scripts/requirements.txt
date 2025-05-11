@@ -5,3 +5,7 @@ matplotlib
 scikit-learn
 rpy2
 pandas
+torch
+torchvision
+opacus
+tqdm
