@@ -22,25 +22,9 @@ from collections import OrderedDict
 import os
 torch.set_num_threads(1)
 
-def convnet(num_classes):
-    return nn.Sequential(
-        nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AvgPool2d(kernel_size=2, stride=2),
-        nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AvgPool2d(kernel_size=2, stride=2),
-        nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AvgPool2d(kernel_size=2, stride=2),
-        nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AdaptiveAvgPool2d((1, 1)),
-        nn.Flatten(start_dim=1, end_dim=-1),
-        nn.Linear(128, num_classes, bias=True),
-    )
+from .model_architecture import convnet
 
-def train(args, model, train_loader, optimizer, privacy_engine, epoch, device):
+def train(model, train_loader, optimizer, device):
     model.train()
     criterion = nn.CrossEntropyLoss()
     for images, target in tqdm(train_loader):
@@ -65,7 +49,7 @@ def evaluate_loss(model, dataloader, device):
             total_samples += X.size(0)
     return total_loss / total_samples
 
-def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d"):    
+def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d", model_type="CNN"):    
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
 
@@ -109,7 +93,8 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
             "sigma": sigma,
             "max_grad_norm": max_grad_norm,
             "device": device,
-            "internal_result_path": data_args["internal_result_path"]
+            "internal_result_path": data_args["internal_result_path"],
+            "model_type": model_type
         },
         "dataset":{
             "x0": x0,
@@ -162,6 +147,13 @@ class CNN_DPSGDSampler:
         self.sigma = kwargs["sgd_alg"]["sigma"]
         self.max_grad_norm = kwargs["sgd_alg"]["max_grad_norm"]
         self.device = kwargs["sgd_alg"]["device"]
+
+        model_type = kwargs["sgd_alg"]["model_type"]
+        if model_type == "CNN":
+            self.model_type = "CNN"
+            self.model_class = convnet
+        else:
+            raise ValueError(f"Model type is undefined")
         
         self.bot = -DUMMY_CONSTANT
         seed = secrets.randbits(128)
@@ -212,7 +204,7 @@ class CNN_DPSGDSampler:
     def load_model(self, model_path):
         device = torch.device(self.device)   
         # Create model with same architecture
-        model = convnet(num_classes=10).to(device)
+        model = self.model_class(num_classes=10).to(device)
         
         # Load the saved state dict
         state_dict = torch.load(model_path, map_location=device)
@@ -229,7 +221,7 @@ class CNN_DPSGDSampler:
         # Load the fixed state dict
         model.load_state_dict(new_state_dict)
 
-        self.logger.info(f"Model loaded from {model_path}")
+        self.logger.debug(f"Model loaded from {model_path}")
         
         return model
     
@@ -259,7 +251,7 @@ class CNN_DPSGDSampler:
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
 
         # Set up model
-        model = convnet(num_classes=10).to(device)
+        model = self.model_class(num_classes=10).to(device)
         optimizer = optim.SGD(model.parameters(), lr=self.lr, momentum=0.9)
 
         privacy_engine = PrivacyEngine()
@@ -272,27 +264,55 @@ class CNN_DPSGDSampler:
         )
 
         # Train model
-        for epoch in range(self.epochs):
-            train(self, model, train_loader, optimizer, privacy_engine, epoch, device)
+        for _ in range(self.epochs):
+            train(model, train_loader, optimizer, device)
         
         # Save model
         run_id = ''.join(f'{self.rng.randint(0, 16):x}' for _ in range(16))
-        model_name = f"model_x0_{run_id}.pt" if not positive else f"model_x1_{run_id}.pt"
+        model_name = f"{self.model_type}_model_x0_{run_id}.pt" if not positive else f"{self.model_type}_model_x1_{run_id}.pt"
         model_path = os.path.join(self.model_folder, model_name)
         torch.save(model.state_dict(), model_path)
 
-        self.logger.info(f"Model saved to {model_path}")
+        self.logger.debug(f"Model saved to {model_path}")
 
         return model, model_path
     
-    def preprocess(self, num_samples):     
-        model_x0, model_x0_path = self.train_model(positive=False)
-        model_x1, model_x1_path = self.train_model(positive=True)
+    def preprocess(self, num_samples):
+        # First, try to read existing models from the model folder
+        existing_models_x0 = [f for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x0_") and f.endswith(".pt")]
+        existing_models_x1 = [f for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x1_") and f.endswith(".pt")]
+        
+        # Determine how many models we can load
+        num_existing_samples = min(len(existing_models_x0), len(existing_models_x1))
+        num_generating_samples = max(0, num_samples - num_existing_samples)
+        
+        self.logger.info(f"Found {num_existing_samples} existing model pairs. Need to generate {num_generating_samples} more.")
+        
+        # Load existing models and compute their projections
+        samples_P = []
+        samples_Q = []
+        
+        for i in range(min(num_existing_samples, num_samples)):
+            # Load x0 model
+            model_x0 = self.load_model(os.path.join(self.model_folder, existing_models_x0[i]))
+            samples_P.append(self.project_model_to_one_dim(model_x0))
+            
+            # Load x1 model
+            model_x1 = self.load_model(os.path.join(self.model_folder, existing_models_x1[i]))
+            samples_Q.append(self.project_model_to_one_dim(model_x1))
+            
+            self.logger.info(f"Loaded and projected model pair {i+1}/{num_existing_samples}")
+        
+        # If we need more samples, generate them
+        if num_generating_samples > 0:
+            self.logger.info(f"Generating {num_generating_samples} additional model pairs")
+            for _ in range(num_generating_samples):
+                model_x0, _ = self.train_model(positive=False)
+                model_x1, _ = self.train_model(positive=True)
+                samples_P.append(self.project_model_to_one_dim(model_x0))
+                samples_Q.append(self.project_model_to_one_dim(model_x1))
 
-        samples_P = self.project_model_to_one_dim(model_x0)
-        samples_Q = self.project_model_to_one_dim(model_x1)
-
-        self.samples_P, self.samples_Q = _ensure_2dim(samples_P, samples_Q)
+        self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P), np.array(samples_Q))
         self.computed_samples = num_samples
         
         return (self.samples_P, self.samples_Q)
