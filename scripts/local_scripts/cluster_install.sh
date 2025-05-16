@@ -13,6 +13,14 @@ export PATH="/usr/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/lib64:$LD_LIBRARY_PATH"
 export CPATH="/usr/include:$CPATH"
 
+# Check if fdp-env already exists
+if [ -d "/tmp/fdp-env" ]; then
+    echo "Virtual environment 'fdp-env' already exists in /tmp."
+else
+    echo "Creating virtual environment 'fdp-env' in /tmp..."
+    python3.8 -m venv /tmp/fdp-env
+fi
+
 module load gcc/14.2.0
 module load openblas/0.3.27
 
@@ -43,24 +51,16 @@ fi
 # Install required R packages
 "$R_PREFIX/bin/R" -e "install.packages('fdrtool', repos='https://cloud.r-project.org')"
 
-# Install rpy2
-pip install rpy2
-
-echo "R and rpy2 installation completed successfully!"
-
-# Check if fdp-env already exists
-if [ -d "/tmp/fdp-env" ]; then
-    echo "Virtual environment 'fdp-env' already exists in /tmp."
-else
-    echo "Creating virtual environment 'fdp-env' in /tmp..."
-    python3.8 -m venv /tmp/fdp-env
-fi
-
 # Activate the virtual environment
 source /tmp/fdp-env/bin/activate
 
 # Upgrade pip and install required packages
 pip install --upgrade pip
+# Install rpy2
+pip install rpy2
+
+echo "R and rpy2 installation completed successfully!"
+
 pip install jupyterlab ipykernel
 
 # # Register the kernel

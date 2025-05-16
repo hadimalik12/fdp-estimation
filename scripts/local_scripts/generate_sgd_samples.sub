@@ -30,6 +30,9 @@ export PATH="/usr/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/lib64:$LD_LIBRARY_PATH"
 export CPATH="/usr/include:$CPATH"
 
+export PATH="/apps/spack/bell/apps/anaconda/2020.11-py38-gcc-4.8.5-nhzhrm2/bin:$PATH"
+export PYTHONPATH="/apps/spack/bell/apps/anaconda/2020.11-py38-gcc-4.8.5-nhzhrm2/lib/python3.8/site-packages:$PYTHONPATH"
+
 module load gcc/14.2.0
 module load openblas/0.3.27
 
@@ -41,7 +44,7 @@ bash ~/Desktop/fdp-estimation/scripts/local_scripts/cluster_install.sh
 
 # Run the generate samples script with 10 workers (matching CPU count)
 cd ~/Desktop/fdp-estimation
-./scripts/local_scripts/run_generate_samples.sh \
+./scripts/sgd_experiments/run_generate_samples.sh \
     --num_samples 10 \
     --num_workers 10 \
     --internal_result_path "/scratch/bell/wei402/fdp-estimation/results" \

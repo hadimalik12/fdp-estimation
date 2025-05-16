@@ -148,3 +148,36 @@ The script will:
 - Generate the specified number of samples from both distributions
 - Save the full trainned SGD models in the specified path
 - Save the pair of distribution observations under project_root/data folder
+
+### Running using batch file
+
+To run the sample generation using SLURM batch system:
+
+1. Submit the batch job:
+```bash
+sbatch scripts/local_scripts/generate_sgd_samples.sub
+```
+
+2. Monitor the job status:
+```bash
+squeue -u $USER
+```
+
+3. Check the output and error logs in:
+```
+log/sbatch/sgd_samples_<jobid>.out
+log/sbatch/sgd_samples_<jobid>.err
+```
+
+The batch script will:
+- Run the installation script
+- Generate samples using parallel workers
+- Save trained models in the specified results directory
+- Log detailed information including timing statistics
+
+**important* Before running, please adjust the parameters in `generate_sgd_samples.sub` to match your requirements:
+
+To cancel a running job:
+```bash
+scancel <jobid>
+``` 
