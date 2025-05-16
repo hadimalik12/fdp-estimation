@@ -39,6 +39,7 @@ echo "Number of workers: $NUM_WORKERS"
 echo "Internal result path: $INTERNAL_RESULT_PATH"
 echo "Model type: $MODEL_TYPE"
 # Run the script
+
 python scripts/sgd_experiment/generate_sgd_samples.py \
     --num_samples $NUM_SAMPLES \
     --num_workers $NUM_WORKERS \
