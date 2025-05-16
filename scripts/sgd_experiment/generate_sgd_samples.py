@@ -15,7 +15,6 @@ project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 src_dir = os.path.join(project_dir, 'src')
 fig_dir = os.path.join(project_dir, 'fig')
 data_dir = os.path.join(project_dir, 'data')
-log_dir = os.path.join(project_dir, 'log')
 os.makedirs(fig_dir, exist_ok=True)
 
 # Add the src directory to sys.path
@@ -23,6 +22,7 @@ if src_dir not in sys.path:
     sys.path.append(src_dir)
 
 import mech.full_DPSGD as DPSGDModule
+from mech.full_DPSGD import parallel_train_models
 
 def main():
     parser = argparse.ArgumentParser(description='Generate samples from DPSGD distributions')
@@ -43,14 +43,19 @@ def main():
         "internal_result_path": args.internal_result_path
     }
 
+    log_dir = os.path.join(project_dir, 'log', args.model_type)
+    os.makedirs(log_dir, exist_ok=True)
     sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_type=args.model_type)
-    sampler = DPSGDModule.DPSGDSampler(sampler_args)
 
-    samples_P, samples_Q = sampler.preprocess(num_samples=args.num_samples, num_workers=args.num_workers)
+    parallel_train_models(sampler_args, args.num_samples, num_workers=args.num_workers)
     
-    # Save samples to CSV files
-    np.savetxt(os.path.join(data_dir, 'prediction_d.csv'), samples_P, delimiter=',')
-    np.savetxt(os.path.join(data_dir, 'prediction_dprime.csv'), samples_Q, delimiter=',')
+    # sampler = DPSGDModule.DPSGDSampler(sampler_args)
+
+    # samples_P, samples_Q = sampler.preprocess(num_samples=args.num_samples, num_workers=args.num_workers)
+    
+    # # Save samples to CSV files
+    # np.savetxt(os.path.join(data_dir, f'prediction_d_{args.model_type}.csv'), samples_P, delimiter=',')
+    # np.savetxt(os.path.join(data_dir, f'prediction_dprime_{args.model_type}.csv'), samples_Q, delimiter=',')
 
 if __name__ == "__main__":
     main()

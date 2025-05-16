@@ -1,0 +1,58 @@
+#!/bin/bash
+#SBATCH --job-name=sgd_samples
+#SBATCH --output=/home/wei402/Desktop/fdp-estimation/log/sbatch/sgd_samples_%j.out
+#SBATCH --error=/home/wei402/Desktop/fdp-estimation/log/sbatch/sgd_samples_%j.err
+#SBATCH --account=highmem
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=10
+#SBATCH --time=03:00:00
+
+
+# Record start time
+start_time=$(date +%s)
+echo "Job started at $(date)"
+
+# Print job information
+echo "Running on node: $(hostname)"
+echo "Allocated CPUs: $SLURM_CPUS_PER_TASK"
+
+set -e  # Exit on error
+
+# Set installation prefix
+R_PREFIX="/tmp/R_local_wei402"
+
+# Create installation directory if it doesn't exist
+mkdir -p "$R_PREFIX"
+
+# Use system curl and libraries
+export PATH="/usr/bin:$PATH"
+export LD_LIBRARY_PATH="/usr/lib64:$LD_LIBRARY_PATH"
+export CPATH="/usr/include:$CPATH"
+
+module load gcc/14.2.0
+module load openblas/0.3.27
+
+# Create log directory if it doesn't exist
+mkdir -p ~/Desktop/fdp-estimation/log/sbatch
+
+# Run the installation script first
+bash ~/Desktop/fdp-estimation/scripts/local_scripts/cluster_install.sh
+
+# Run the generate samples script with 10 workers (matching CPU count)
+cd ~/Desktop/fdp-estimation
+./scripts/local_scripts/run_generate_samples.sh \
+    --num_samples 10 \
+    --num_workers 10 \
+    --internal_result_path "/scratch/bell/wei402/fdp-estimation/results" \
+    --model_type "CNN"
+
+# Calculate and print total time
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+hours=$((duration / 3600))
+minutes=$(( (duration % 3600) / 60 ))
+seconds=$((duration % 60))
+
+echo "Job finished at $(date)"
+echo "Total time used: ${hours}h ${minutes}m ${seconds}s" 
