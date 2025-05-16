@@ -36,38 +36,10 @@ class _PTLREstimator:
         logging.info(f"Generated {self.num_samples} samples in {time.perf_counter() - tic:0.4f} seconds")
         
         # ptlr estimation
-        t_min = min(np.min(p_sample), np.min(q_sample))
-        t_max = max(np.max(p_sample), np.max(q_sample))
-    
-        range_x = FloatVector([t_min, t_max])  # R-compatible vector
-
-        # Convert samples to R-compatible vectors
-        p_sample_r = FloatVector(p_sample)
-        q_sample_r = FloatVector(q_sample)
-    
-        # Compute bandwidths using dpik
-        bw_p = KernSmooth.dpik(p_sample_r, kernel='normal', gridsize=1000, range_x=range_x)
-        bw_q = KernSmooth.dpik(q_sample_r, kernel='normal', gridsize=1000, range_x=range_x)
-    
-        # Apply Gaussian KDE with computed bandwidths
-        kde_p = gaussian_kde(p_sample, bw_method=float(bw_p[0]))
-        kde_q = gaussian_kde(q_sample, bw_method=float(bw_q[0]))
-        
-        x_grid = np.linspace(t_min, t_max, 1000)
-        hat_p = kde_p(x_grid)
-        hat_q = kde_q(x_grid)
-        grid_width = x_grid[1] - x_grid[0]
-        
-        hat_p_q_ratio = np.divide(hat_p, np.maximum(hat_q, 1e-10), out=np.zeros_like(hat_p))
-    
-        hat_p_q_ratio[np.isinf(hat_p_q_ratio)] = 0
-        hat_p_q_ratio[np.isnan(hat_p_q_ratio)] = 0
-        
-        x_vector = np.linspace(-self.h / 2, self.h / 2, 1000)
         eta_array = np.linspace(0, eta_max, 1000)
-        
-        alpha_array = np.array([alpha_value(eta, x_vector, self.h, grid_width, hat_p, hat_p_q_ratio) for eta in eta_array])
-        beta_array = np.array([beta_value(eta, x_vector, self.h, grid_width, hat_q, hat_p_q_ratio) for eta in eta_array])
+        tradeoff_curve = KDE_Estimator_from_samples(eta_max, self.h, p_sample, q_sample)
+        alpha_array = tradeoff_curve["alpha"]
+        beta_array = tradeoff_curve["beta"]
         
         logging.info(f"Estimation is completed in {time.perf_counter() - tic:0.4f}s")
 
@@ -99,3 +71,41 @@ def beta_value(eta, x_vector, h, grid_width, hat_q, hat_p_q_ratio):
         for x in x_vector
     ])
     return beta
+
+def KDE_Estimator_from_samples(eta_max, h, p_sample, q_sample):
+    # Compute KDE support range
+    t_min = min(np.min(p_sample), np.min(q_sample))
+    t_max = max(np.max(p_sample), np.max(q_sample))
+    range_x = FloatVector([t_min, t_max])
+
+    # Convert to R vectors
+    p_sample_r = FloatVector(p_sample)
+    q_sample_r = FloatVector(q_sample)
+
+    # Compute bandwidths using R's dpik
+    bw_p = KernSmooth.dpik(p_sample_r, kernel='normal', gridsize=1000, range_x=range_x)
+    bw_q = KernSmooth.dpik(q_sample_r, kernel='normal', gridsize=1000, range_x=range_x)
+
+    # Apply Gaussian KDE
+    kde_p = gaussian_kde(p_sample, bw_method=float(bw_p[0]))
+    kde_q = gaussian_kde(q_sample, bw_method=float(bw_q[0]))
+
+    # Evaluate densities
+    x_grid = np.linspace(t_min, t_max, 1000)
+    hat_p = kde_p(x_grid)
+    hat_q = kde_q(x_grid)
+    grid_width = x_grid[1] - x_grid[0]
+
+    # Compute ratio safely
+    hat_p_q_ratio = np.divide(hat_p, np.maximum(hat_q, 1e-10), out=np.zeros_like(hat_p))
+    hat_p_q_ratio[np.isinf(hat_p_q_ratio)] = 0
+    hat_p_q_ratio[np.isnan(hat_p_q_ratio)] = 0
+
+    # Estimate alpha and beta
+    x_vector = np.linspace(-h / 2, h / 2, 1000)
+    eta_vector = np.linspace(0, eta_max, 1000)
+
+    alpha = np.array([alpha_value(eta, x_vector, h, grid_width, hat_p, hat_p_q_ratio) for eta in eta_vector])
+    beta = np.array([beta_value(eta, x_vector, h, grid_width, hat_q, hat_p_q_ratio) for eta in eta_vector])
+
+    return {"alpha": alpha, "beta": beta}

@@ -18,6 +18,7 @@ module load openblas/0.3.27
 
 # Download and install R locally if not already present
 if [ ! -x "$R_PREFIX/bin/R" ]; then
+    cd /tmp 
     echo "Installing R locally in $R_PREFIX..."
     if [ ! -f "R-4.1.2.tar.gz" ]; then
         echo "Downloading R-4.1.2..."
