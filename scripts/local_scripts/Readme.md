@@ -15,9 +15,9 @@ In many HPC clusters, the `/tmp` directory is local to each compute node, provid
 
 ---
 
-## Workflow: Using VS Code and Jupyter Lab on a Compute Node
+### Workflow: Using VS Code and Jupyter Lab on a Compute Node
 
-### 1. SSH to the Login Node
+#### 1. SSH to the Login Node
 
 Connect to the cluster's login node using your SSH key:
 ```bash
@@ -58,7 +58,7 @@ exit
 
 ---
 
-### 2. Request an Interactive Compute Node
+#### 2. Request an Interactive Compute Node
 
 Run:
 ```bash
@@ -68,7 +68,7 @@ where `-n 12`: Number of CPU cores and `-t 12:00:00`: Walltime (12 hours)
 
 ---
 
-### 3. Find Your Compute Node Name
+#### 3. Find Your Compute Node Name
 
 Check your job and node with:
 ```bash
@@ -78,7 +78,7 @@ squeue -u $USER
 
 ---
 
-### 4. Set Up SSH Config for Two-Hop Access
+#### 4. Set Up SSH Config for Two-Hop Access
 
 Edit your `~/.ssh/config` to include:
 
@@ -95,7 +95,7 @@ Host compute-alias
     IdentityFile /path/to/your/ssh_key
 ```
 
-### 5. Connect to the Compute Node in VS Code
+#### 5. Connect to the Compute Node in VS Code
 
 - Open a new VS Code window.
 - Use the Remote-SSH extension to connect to `compute-alias`.
@@ -113,3 +113,38 @@ chmod +x r-bell-kernel-install.sh
 chmod +x cluster_install.sh
 ./cluster_install.sh
 ```
+
+## Generating SGD samples
+
+To generate SGD samples, you can use either the Python script directly or the shell script wrapper:
+
+### Using the shell script (recommended):
+
+1. Run with default settings (32 samples, 32 workers):
+```bash
+bash local_scripts/run_generate_samples.sh
+```
+
+2. Run with all parameters specified:
+```bash
+bash local_scripts/run_generate_samples.sh \
+    --num_samples 64 \
+    --num_workers 8 \
+    --internal_result_path "/path/to/results" \
+    --model_type "CNN"
+```
+
+### Using the Python script directly:
+
+```bash
+python scripts/sgd_experiment/generate_sgd_samples.py \
+    --num_samples 32 \
+    --num_workers 4 \
+    --internal_result_path "/path/to/results" \
+    --model_type "CNN"
+```
+
+The script will:
+- Generate the specified number of samples from both distributions
+- Save the full trainned SGD models in the specified path
+- Save the pair of distribution observations under project_root/data folder

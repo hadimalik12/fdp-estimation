@@ -16,7 +16,7 @@ import torch.nn.functional as torch_F
 from opacus import PrivacyEngine
 from torchvision.datasets import CIFAR10
 from tqdm import tqdm
-from torch.utils.data import Subset
+from tqdm import tqdm
 
 from collections import OrderedDict
 
@@ -129,8 +129,63 @@ def get_white_image(tensor_image = False):
         image = np.full((32, 32, 3), 255, dtype=np.uint8)
     return image
 
+def _train_model_worker(args):
+    """Worker function for parallel model training."""
+    sampler_kwargs, positive = args
+    import torch
+    torch.set_num_threads(1)
+    sampler = DPSGDSampler(sampler_kwargs)
+    _, model_path = sampler.train_model(positive=positive)
+    return model_path
 
-class CNN_DPSGDSampler:
+def _load_sample_worker(args):
+    """Worker function for parallel model loading and projection."""
+    sampler_kwargs, model_path = args
+    import torch
+    torch.set_num_threads(1)
+    sampler = DPSGDSampler(sampler_kwargs)
+    model = sampler.load_model(model_path)
+
+    if sampler.auditing_approach == "1d":
+        score = sampler.project_model_to_one_dim(model)
+        return score
+    else:
+        raise ValueError(f"Auditing approach is undefined")
+    
+def parallel_load_samples(sampler_kwargs, model_paths, num_workers=1):
+    """Load models in parallel, each on a single CPU thread."""
+    print(f"\nLoading and projecting models with {num_workers} workers:")
+    with multiprocessing.Pool(processes=num_workers) as pool:
+        args_list = [(sampler_kwargs, path) for path in model_paths]
+        scores = list(tqdm(
+            pool.imap(_load_sample_worker, args_list),
+            total=len(args_list),
+            desc="Loading models"
+        ))
+    return scores
+
+def parallel_train_models(sampler_kwargs, num_generating_samples, num_workers=1):
+    """Train num_generating_samples models in parallel, each on a single CPU thread."""
+    with multiprocessing.Pool(processes=num_workers) as pool:
+        # Combine both positive and negative args into one list
+        args_list = [(sampler_kwargs, False)] * num_generating_samples + \
+                   [(sampler_kwargs, True)] * num_generating_samples
+        
+        # Process all models in parallel with progress tracking
+        all_results = list(tqdm(
+            pool.imap(_train_model_worker, args_list),
+            total=len(args_list),
+            desc="Training models"
+        ))
+        
+        # Split results back into positive and negative
+        negative_models_paths = all_results[:num_generating_samples]
+        positive_models_paths = all_results[num_generating_samples:]
+    
+    return negative_models_paths, positive_models_paths
+
+
+class DPSGDSampler:
     """
         The sampler takes as inputs a pair of database (x0, x1)
         The parameters of the opacus DPSGD algorithm: initial model theta_0; number of epochs T; learning rate eta; and the noise parameter sigma
@@ -138,6 +193,7 @@ class CNN_DPSGDSampler:
         It generate a sample set with given eta from the preprocessed dataset
     """
     def __init__(self, kwargs):
+        self.kwargs = kwargs
         self.x0 = kwargs["dataset"]["x0"]
         self.x1 = kwargs["dataset"]["x1"]
         self.internal_result_path = kwargs["sgd_alg"]["internal_result_path"]
@@ -166,8 +222,8 @@ class CNN_DPSGDSampler:
 
         # Log the information about the CNN sampler
         self.logger = self.get_logger(kwargs["log_file_path"])
-        self.logger.info("Initialized CNN_DPSGDSampler with parameters: batch_size=%d, epochs=%d, lr=%.2f, sigma=%.2f, max_grad_norm=%.2f, device=%s", 
-                    self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
+        self.logger.info("Initialized %s_DPSGDSampler with parameters: batch_size=%d, epochs=%d, lr=%.2f, sigma=%.2f, max_grad_norm=%.2f, device=%s", 
+                    self.model_type, self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
         
         # Set up auditing approach
         self.auditing_approach = kwargs["auditing_approach"]
@@ -175,6 +231,9 @@ class CNN_DPSGDSampler:
             raise ValueError(f"Auditing approach has not been implemented yet")
         if self.auditing_approach == "1d":
             self.dim_reduction_image = get_black_image(tensor_image=True)
+        
+        self.reset_randomness()
+        torch.manual_seed(self.rng.randint(0, 2**32 - 1))
     
     def reset_randomness(self):
         seed = secrets.randbits(128)
@@ -182,18 +241,18 @@ class CNN_DPSGDSampler:
     
     def get_logger(self, file_path=None):
         logger = logging.getLogger(__name__)
-        logger.setLevel(logging.INFO)
+
         
         # Create formatter
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - [PID:%(process)d] - %(message)s')
         
-        # Always add console handler
+        # Console handler - only show CRITICAL
         ch = logging.StreamHandler()
         ch.setLevel(logging.CRITICAL)
         ch.setFormatter(formatter)
         logger.addHandler(ch)
         
-        # Add file handler if file_path is provided
+        # File handler - show DEBUG and above
         if file_path:
             fh = logging.FileHandler(file_path)
             fh.setLevel(logging.DEBUG)
@@ -239,7 +298,7 @@ class CNN_DPSGDSampler:
         # The projection is done by taking the softmax output of the model 
         model.eval()
         logits = model(self.dim_reduction_image)
-        score = torch_F.softmax(logits, dim=1).squeeze()[0].item()  # get the first float, the probability of the black image being classified as class 0 (the airplane class)
+        score = logits.squeeze()[0].item()  # get the first logit value directly without softmax
 
         return score
     
@@ -278,40 +337,33 @@ class CNN_DPSGDSampler:
 
         return model, model_path
     
-    def preprocess(self, num_samples):
+    def preprocess(self, num_samples, num_workers=1):
         # First, try to read existing models from the model folder
-        existing_models_x0 = [f for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x0_") and f.endswith(".pt")]
-        existing_models_x1 = [f for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x1_") and f.endswith(".pt")]
+        existing_negative_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x0_") and f.endswith(".pt")]
+        existing_positive_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x1_") and f.endswith(".pt")]
         
         # Determine how many models we can load
-        num_existing_samples = min(len(existing_models_x0), len(existing_models_x1))
+        num_existing_samples = min(len(existing_negative_models_paths), len(existing_positive_models_paths))
         num_generating_samples = max(0, num_samples - num_existing_samples)
         
         self.logger.info(f"Found {num_existing_samples} existing model pairs. Need to generate {num_generating_samples} more.")
+
+        generated_negative_models_paths = []
+        generated_positive_models_paths = []
+
+        if num_generating_samples > 0:
+            self.logger.info(f"Generating {num_generating_samples} additional model pairs")
+            generated_negative_models_paths, generated_positive_models_paths = parallel_train_models(self.kwargs, num_generating_samples, num_workers=num_workers)
         
         # Load existing models and compute their projections
         samples_P = []
         samples_Q = []
-        
-        for i in range(min(num_existing_samples, num_samples)):
-            # Load x0 model
-            model_x0 = self.load_model(os.path.join(self.model_folder, existing_models_x0[i]))
-            samples_P.append(self.project_model_to_one_dim(model_x0))
-            
-            # Load x1 model
-            model_x1 = self.load_model(os.path.join(self.model_folder, existing_models_x1[i]))
-            samples_Q.append(self.project_model_to_one_dim(model_x1))
-            
-            self.logger.info(f"Loaded and projected model pair {i+1}/{num_existing_samples}")
-        
-        # If we need more samples, generate them
-        if num_generating_samples > 0:
-            self.logger.info(f"Generating {num_generating_samples} additional model pairs")
-            for _ in range(num_generating_samples):
-                model_x0, _ = self.train_model(positive=False)
-                model_x1, _ = self.train_model(positive=True)
-                samples_P.append(self.project_model_to_one_dim(model_x0))
-                samples_Q.append(self.project_model_to_one_dim(model_x1))
+
+        negative_models_paths = existing_negative_models_paths[:num_existing_samples] + generated_negative_models_paths
+        positive_models_paths = existing_positive_models_paths[:num_existing_samples] + generated_positive_models_paths
+
+        samples_P = parallel_load_samples(self.kwargs, negative_models_paths, num_workers=num_workers)
+        samples_Q = parallel_load_samples(self.kwargs, positive_models_paths, num_workers=num_workers)            
 
         self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P), np.array(samples_Q))
         self.computed_samples = num_samples
