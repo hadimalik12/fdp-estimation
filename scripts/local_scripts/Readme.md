@@ -114,20 +114,20 @@ chmod +x cluster_install.sh
 ./cluster_install.sh
 ```
 
-## Generating SGD samples
+## Generating SGD models 
 
-To generate SGD samples, you can use either the Python script directly or the shell script wrapper:
+To generate SGD models, you can use either the Python script directly or the shell script wrapper:
 
 ### Using the shell script (recommended):
 
-1. Run with default settings (32 samples, 32 workers):
+1. Run with default settings (32 models, 32 workers):
 ```bash
-bash local_scripts/run_generate_samples.sh
+bash local_scripts/run_generate_models.sh
 ```
 
 2. Run with all parameters specified:
 ```bash
-bash local_scripts/run_generate_samples.sh \
+bash local_scripts/run_generate_models.sh \
     --num_samples 64 \
     --num_workers 8 \
     --internal_result_path "/path/to/results" \
@@ -137,7 +137,7 @@ bash local_scripts/run_generate_samples.sh \
 ### Using the Python script directly:
 
 ```bash
-python scripts/sgd_experiment/generate_sgd_samples.py \
+python scripts/sgd_experiment/generate_sgd_models.py \
     --num_samples 32 \
     --num_workers 4 \
     --internal_result_path "/path/to/results" \
@@ -155,7 +155,7 @@ To run the sample generation using SLURM batch system:
 
 1. Submit the batch job:
 ```bash
-sbatch scripts/local_scripts/generate_sgd_samples.sub
+sbatch scripts/local_scripts/generate_sgd_models.sub
 ```
 
 2. Monitor the job status:
@@ -165,8 +165,8 @@ squeue -u $USER
 
 3. Check the output and error logs in:
 ```
-log/sbatch/sgd_samples_<jobid>.out
-log/sbatch/sgd_samples_<jobid>.err
+log/sbatch/sgd_models_<jobid>.out
+log/sbatch/sgd_models_<jobid>.err
 ```
 
 The batch script will:
@@ -175,7 +175,7 @@ The batch script will:
 - Save trained models in the specified results directory
 - Log detailed information including timing statistics
 
-**important* Before running, please adjust the parameters in `generate_sgd_samples.sub` to match your requirements:
+**important* Before running, please adjust the parameters in `generate_sgd_models.sub` to match your requirements:
 
 To cancel a running job:
 ```bash
