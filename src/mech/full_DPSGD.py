@@ -20,7 +20,12 @@ from tqdm import tqdm
 
 from collections import OrderedDict
 
+from estimator.basic import _GeneralNaiveEstimator
+from estimator.ptlr import _PTLREstimator
+from auditor.basic import _GeneralNaiveAuditor
+
 import os
+import shutil
 torch.set_num_threads(1)
 
 from .model_architecture import convnet
@@ -50,7 +55,7 @@ def evaluate_loss(model, dataloader, device):
             total_samples += X.size(0)
     return total_loss / total_samples
 
-def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d", model_type="CNN"):    
+def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d", model_type="CNN", num_samples=1000, num_train_samples=1000, num_test_samples=1000, h=0.01, eta_max=15):    
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
 
@@ -102,7 +107,12 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
             "x1": x1
         },
         "log_file_path": log_file_path,
-        "auditing_approach": auditing_approach
+        "auditing_approach": auditing_approach,
+        "num_samples": num_samples,
+        "num_train_samples" : num_train_samples,
+        "num_test_samples" : num_test_samples,
+        "h": h,
+        "eta_max" : eta_max,
     }
     return kwargs
 
@@ -227,8 +237,10 @@ class DPSGDSampler:
 
         # Set up model folder
         self.model_folder = os.path.join(self.internal_result_path, "model_folder")
-        os.makedirs(self.model_folder, exist_ok=True)
+        self.samples_folder = os.path.join(self.internal_result_path, "samples_folder")
 
+        os.makedirs(self.model_folder, exist_ok=True)
+        os.makedirs(self.samples_folder, exist_ok=True)
         # Log the information about the CNN sampler
         self.logger = self.get_logger(kwargs["log_file_path"])
         self.logger.info("Initialized %s_DPSGDSampler with parameters: batch_size=%d, epochs=%d, lr=%.2f, sigma=%.2f, max_grad_norm=%.2f, device=%s", 
@@ -242,11 +254,11 @@ class DPSGDSampler:
             self.dim_reduction_image = get_black_image(tensor_image=True)
         
         self.reset_randomness()
-        torch.manual_seed(self.rng.randint(0, 2**32 - 1))
     
     def reset_randomness(self):
         seed = secrets.randbits(128)
         self.rng = RandomState(MT19937(seed))
+        torch.manual_seed(self.rng.randint(0, 2**32 - 1))
     
     def get_logger(self, file_path=None):
         logger = logging.getLogger(__name__)
@@ -346,16 +358,42 @@ class DPSGDSampler:
 
         return model, model_path
     
-    def preprocess(self, num_samples, num_workers=1):
-        # First, try to read existing models from the model folder
-        existing_negative_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x0_") and f.endswith(".pt")]
-        existing_positive_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x1_") and f.endswith(".pt")]
-        
-        # Determine how many models we can load
-        num_existing_samples = min(len(existing_negative_models_paths), len(existing_positive_models_paths))
-        num_generating_samples = max(0, num_samples - num_existing_samples)
-        
-        self.logger.info(f"Found {num_existing_samples} existing model pairs. Need to generate {num_generating_samples} more.")
+    def preprocess(self, num_samples, num_workers=1, reset = False):
+        # First, check if enought samples are already generated
+        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_type}')
+        try:
+            samples_P = np.loadtxt(os.path.join(samples_dir, f'prediction_d_{self.model_type}.csv'), delimiter=',')
+            samples_Q = np.loadtxt(os.path.join(samples_dir, f'prediction_dprime_{self.model_type}.csv'), delimiter=',')
+            if reset == False and len(samples_P) >= num_samples and len(samples_Q) >= num_samples:
+                self.logger.info(f"Found {num_samples} samples in {samples_dir}. Skipping generation.")
+                self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P[:num_samples]), np.array(samples_Q[:num_samples]))
+                self.computed_samples = num_samples
+                return (self.samples_P, self.samples_Q)
+            else:
+                self.logger.info(f"Need to generate {num_samples} samples.")
+                shutil.rmtree(samples_dir)
+                os.makedirs(samples_dir, exist_ok=True)
+        except FileNotFoundError:
+            self.logger.info(f"Need to generate {num_samples} samples.")
+            if os.path.exists(samples_dir):
+                shutil.rmtree(samples_dir)
+            os.makedirs(samples_dir, exist_ok=True)
+
+        if reset == False:
+            # Second try to read existing models from the model folder
+            existing_negative_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x0_") and f.endswith(".pt")]
+            existing_positive_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x1_") and f.endswith(".pt")]
+            
+            # Determine how many models we can load
+            num_existing_samples = min(len(existing_negative_models_paths), len(existing_positive_models_paths))
+            num_generating_samples = max(0, num_samples - num_existing_samples)
+            
+            self.logger.info(f"Found {num_existing_samples} existing model pairs. Need to generate {num_generating_samples} more.")
+        else:
+            existing_negative_models_paths = []
+            existing_positive_models_paths = []
+            num_existing_samples = 0
+            num_generating_samples = num_samples
 
         generated_negative_models_paths = []
         generated_positive_models_paths = []
@@ -376,5 +414,70 @@ class DPSGDSampler:
 
         self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P), np.array(samples_Q))
         self.computed_samples = num_samples
+
+        # Save samples
+        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_type}')
+        os.makedirs(samples_dir, exist_ok=True)
+        
+        np.savetxt(os.path.join(samples_dir, f'prediction_d_{self.model_type}.csv'), samples_P, delimiter=',')
+        np.savetxt(os.path.join(samples_dir, f'prediction_dprime_{self.model_type}.csv'), samples_Q, delimiter=',')
         
         return (self.samples_P, self.samples_Q)
+    
+    def gen_samples(self, eta, num_samples, reset = False, shuffle = False):
+        assert eta > 0
+        self.reset_randomness()
+        
+        if reset == True:
+            samples_P, samples_Q = self.preprocess(num_samples, reset = True)
+        else:
+            if (hasattr(self, "computed_samples") == False) or (self.computed_samples < num_samples):
+                samples_P, samples_Q = self.preprocess(num_samples)
+                self.computed_samples = num_samples
+            else:
+                samples_P = self.samples_P[:num_samples]
+                samples_Q = self.samples_Q[:num_samples]
+                
+        if eta > 1:
+            p = self.rng.uniform(0, 1, num_samples) > (1.0/eta)
+            p = p.reshape((num_samples, 1)) * np.ones((num_samples, self.dim))
+            samples_P = (1-p)*samples_P + p*(self.bot*np.ones_like(self.dim))
+        if eta < 1:
+            p = self.rng.uniform(0, 1, num_samples) > eta
+            p = p.reshape((num_samples, 1)) * np.ones((num_samples, self.dim))
+            samples_Q = (1-p)*samples_Q + p*(self.bot*np.ones_like(self.dim))
+        
+        samples = np.vstack((samples_P, samples_Q))
+        labels = np.concatenate((np.zeros(num_samples), np.ones(num_samples)))
+        
+        if shuffle:
+            ids = self.rng.permutation(num_samples*2)
+            samples = samples[ids]
+            labels = labels[ids]
+            
+        return {'X': samples, 'y': labels}
+    
+
+class DPSGD_Estimator(_GeneralNaiveEstimator):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        train_kwargs = kwargs.copy()
+        train_kwargs["sgd_alg"]["internal_result_path"] = os.path.join(kwargs["sgd_alg"]["internal_result_path"], "train")
+        self.train_sampler = DPSGDSampler(train_kwargs)
+
+        test_kwargs = kwargs.copy()
+        test_kwargs["sgd_alg"]["internal_result_path"] = os.path.join(kwargs["sgd_alg"]["internal_result_path"], "test")
+        self.test_sampler = DPSGDSampler(test_kwargs)
+
+
+class DPSGD_PTLREstimator(_PTLREstimator):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.sampler = DPSGDSampler(kwargs)
+
+
+class DPSGD_Auditor(_GeneralNaiveAuditor):
+    def __init__(self, kwargs):
+        super().__init__(kwargs=kwargs)
+        self.point_finder = DPSGD_PTLREstimator(kwargs)
+        self.point_estimator = DPSGD_Estimator(kwargs)
