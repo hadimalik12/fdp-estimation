@@ -132,37 +132,46 @@ def get_white_image(tensor_image = False):
 def _train_model_worker(args):
     """Worker function for parallel model training."""
     sampler_kwargs, positive = args
-    import torch
     torch.set_num_threads(1)
     sampler = DPSGDSampler(sampler_kwargs)
     _, model_path = sampler.train_model(positive=positive)
     return model_path
 
-def _load_sample_worker(args):
-    """Worker function for parallel model loading and projection."""
-    sampler_kwargs, model_path = args
-    import torch
+def _generate_sample_worker(args):
+    sampler_kwargs, model_path_list = args
     torch.set_num_threads(1)
     sampler = DPSGDSampler(sampler_kwargs)
-    model = sampler.load_model(model_path)
+    results = []
 
-    if sampler.auditing_approach == "1d":
-        score = sampler.project_model_to_one_dim(model)
-        return score
-    else:
+    if sampler.auditing_approach not in ["1d"]:
         raise ValueError(f"Auditing approach is undefined")
+
+    for model_path in model_path_list:
+        model = sampler.load_model(model_path)
+        score = sampler.project_model_to_one_dim(model)
+        results.append(score)
+    return results
     
-def parallel_load_samples(sampler_kwargs, model_paths, num_workers=1):
+def parallel_generate_samples(sampler_kwargs, model_paths, num_workers=1, batch_size=50):
     """Load models in parallel, each on a single CPU thread."""
     print(f"\nLoading and projecting models with {num_workers} workers:")
     with multiprocessing.Pool(processes=num_workers) as pool:
-        args_list = [(sampler_kwargs, path) for path in model_paths]
+        args_list = [
+            (sampler_kwargs, model_paths[i:i+batch_size])
+            for i in range(0, len(model_paths), batch_size)
+        ]
+
         scores = list(tqdm(
-            pool.imap(_load_sample_worker, args_list),
+            pool.imap(_generate_sample_worker, args_list),
             total=len(args_list),
-            desc="Loading models"
+            desc="Generating samples"
         ))
-    return scores
+    # Flatten the list of lists
+    results = []
+    for batch in scores:
+        results.extend(batch)
+
+    return results
 
 def parallel_train_models(sampler_kwargs, num_generating_samples, num_workers=1):
     """Train num_generating_samples models in parallel, each on a single CPU thread."""
@@ -359,11 +368,11 @@ class DPSGDSampler:
         samples_P = []
         samples_Q = []
 
-        negative_models_paths = existing_negative_models_paths[:num_existing_samples] + generated_negative_models_paths
-        positive_models_paths = existing_positive_models_paths[:num_existing_samples] + generated_positive_models_paths
+        negative_models_paths = existing_negative_models_paths[:num_samples] + generated_negative_models_paths
+        positive_models_paths = existing_positive_models_paths[:num_samples] + generated_positive_models_paths
 
-        samples_P = parallel_load_samples(self.kwargs, negative_models_paths, num_workers=num_workers)
-        samples_Q = parallel_load_samples(self.kwargs, positive_models_paths, num_workers=num_workers)            
+        samples_P = parallel_generate_samples(self.kwargs, negative_models_paths, num_workers=num_workers)
+        samples_Q = parallel_generate_samples(self.kwargs, positive_models_paths, num_workers=num_workers)            
 
         self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P), np.array(samples_Q))
         self.computed_samples = num_samples
