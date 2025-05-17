@@ -55,7 +55,7 @@ def evaluate_loss(model, dataloader, device):
             total_samples += X.size(0)
     return total_loss / total_samples
 
-def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d", model_type="CNN", num_samples=1000, num_train_samples=1000, num_test_samples=1000, h=0.01, eta_max=15):    
+def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d_logit", model_type="CNN", num_samples=1000, num_train_samples=1000, num_test_samples=1000, h=0.01, eta_max=15):    
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
 
@@ -88,7 +88,7 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
     else:
         log_file_path = None
 
-    if auditing_approach not in ["1d", "kd", "full"]:
+    if auditing_approach not in ["1d_logit", "1d_cross_entropy"]:
         raise ValueError(f"Auditing approach is undefined")
     
     kwargs = {
@@ -153,12 +153,12 @@ def _generate_sample_worker(args):
     sampler = DPSGDSampler(sampler_kwargs)
     results = []
 
-    if sampler.auditing_approach not in ["1d"]:
+    if sampler.auditing_approach_name not in ["1d_logit", "1d_cross_entropy"]:
         raise ValueError(f"Auditing approach is undefined")
 
     for model_path in model_path_list:
         model = sampler.load_model(model_path)
-        score = sampler.project_model_to_one_dim(model)
+        score = sampler.auditing_approach(model)
         results.append(score)
     return results
     
@@ -247,11 +247,16 @@ class DPSGDSampler:
                     self.model_type, self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
         
         # Set up auditing approach
-        self.auditing_approach = kwargs["auditing_approach"]
-        if self.auditing_approach == "kd" or self.auditing_approach == "full":
+        self.auditing_approach_name = kwargs["auditing_approach"]
+        if self.auditing_approach_name == "kd" or self.auditing_approach_name == "full":
             raise ValueError(f"Auditing approach has not been implemented yet")
-        if self.auditing_approach == "1d":
+        
+        if self.auditing_approach_name == "1d_logit":
             self.dim_reduction_image = get_black_image(tensor_image=True)
+            self.auditing_approach = self.project_model_to_one_dim_logit
+        elif self.auditing_approach_name == "1d_cross_entropy":
+            self.dim_reduction_image = get_black_image(tensor_image=True)
+            self.auditing_approach = self.project_model_to_one_dim_cross_entropy
         
         self.reset_randomness()
     
@@ -314,12 +319,24 @@ class DPSGDSampler:
 
         return final_loss
 
-    def project_model_to_one_dim(self, model):
+    def project_model_to_one_dim_logit(self, model):
         # This method projects the model's output to a one-dimensional value, allowing the use of kernel density estimation techniques.
         # The projection is done by taking the softmax output of the model 
         model.eval()
         logits = model(self.dim_reduction_image)
         score = logits.squeeze()[0].item()  # get the first logit value directly without softmax
+
+        return score
+    
+    def project_model_to_one_dim_cross_entropy(self, model):
+        # This method projects the model's output to a one-dimensional value, allowing the use of kernel density estimation techniques.
+        # The projection is done by taking the softmax output of the model 
+        model.eval()
+        logits = model(self.dim_reduction_image)
+
+        target = torch.tensor([0], dtype=torch.long)
+        loss = nn.CrossEntropyLoss()(logits, target)
+        score = loss.item()
 
         return score
     
@@ -361,9 +378,10 @@ class DPSGDSampler:
     def preprocess(self, num_samples, num_workers=1, reset = False):
         # First, check if enought samples are already generated
         samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_type}')
+        os.makedirs(samples_dir, exist_ok=True)
         try:
-            samples_P = np.loadtxt(os.path.join(samples_dir, f'prediction_d_{self.model_type}.csv'), delimiter=',')
-            samples_Q = np.loadtxt(os.path.join(samples_dir, f'prediction_dprime_{self.model_type}.csv'), delimiter=',')
+            samples_P = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_type}.csv'), delimiter=',')
+            samples_Q = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_type}.csv'), delimiter=',')
             if reset == False and len(samples_P) >= num_samples and len(samples_Q) >= num_samples:
                 self.logger.info(f"Found {num_samples} samples in {samples_dir}. Skipping generation.")
                 self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P[:num_samples]), np.array(samples_Q[:num_samples]))
@@ -371,13 +389,8 @@ class DPSGDSampler:
                 return (self.samples_P, self.samples_Q)
             else:
                 self.logger.info(f"Need to generate {num_samples} samples.")
-                shutil.rmtree(samples_dir)
-                os.makedirs(samples_dir, exist_ok=True)
         except FileNotFoundError:
             self.logger.info(f"Need to generate {num_samples} samples.")
-            if os.path.exists(samples_dir):
-                shutil.rmtree(samples_dir)
-            os.makedirs(samples_dir, exist_ok=True)
 
         if reset == False:
             # Second try to read existing models from the model folder
@@ -419,8 +432,8 @@ class DPSGDSampler:
         samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_type}')
         os.makedirs(samples_dir, exist_ok=True)
         
-        np.savetxt(os.path.join(samples_dir, f'prediction_d_{self.model_type}.csv'), samples_P, delimiter=',')
-        np.savetxt(os.path.join(samples_dir, f'prediction_dprime_{self.model_type}.csv'), samples_Q, delimiter=',')
+        np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_type}.csv'), samples_P, delimiter=',')
+        np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_type}.csv'), samples_Q, delimiter=',')
         
         return (self.samples_P, self.samples_Q)
     

@@ -25,7 +25,7 @@ os.makedirs(log_dir, exist_ok=True)
 sys.path.append(src_dir)
 
 from mech.full_DPSGD import get_white_image, get_black_image
-
+from mech.model_architecture import convnet
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(message)s",
@@ -34,24 +34,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("dp_model_export")
 logger.setLevel(logging.INFO)
-
-def convnet(num_classes):
-    return nn.Sequential(
-        nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AvgPool2d(kernel_size=2, stride=2),
-        nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AvgPool2d(kernel_size=2, stride=2),
-        nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AvgPool2d(kernel_size=2, stride=2),
-        nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-        nn.ReLU(),
-        nn.AdaptiveAvgPool2d((1, 1)),
-        nn.Flatten(start_dim=1, end_dim=-1),
-        nn.Linear(128, num_classes, bias=True),
-    )
 
 def train(model, train_loader, optimizer, device):
     model.train()
@@ -107,7 +89,7 @@ def evaluate_image_loss(tensor_image, label, model, device):
     
     return loss.item()
 
-def compute_accuracy_privacy_point(batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu"): 
+def compute_accuracy_privacy_point(batch_size=512, epoch_list=[1], lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", database_size=None, database_name="white_cifar10", model_class = convnet): 
     torch.set_num_threads(1)
     torch.manual_seed(os.getpid())
 
@@ -119,14 +101,28 @@ def compute_accuracy_privacy_point(batch_size=512, epochs=1, lr=0.1, sigma=1.0, 
     ])
 
     full_dataset = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
-    full_dataset.data[0] = get_white_image()
-    full_dataset.targets[0] = 0  # arbitrary label (e.g., class "airplane")
 
-    # Use full CIFAR-10 training dataset
-    train_dataset = full_dataset
+    if database_name == "white_cifar10":
+        # Set white image in the full dataset first
+        full_dataset.data[0] = get_white_image()
+        full_dataset.targets[0] = 0  # arbitrary label (e.g., class "airplane")
+    elif database_name == "black_cifar10":
+        # Set black image in the full dataset first
+        full_dataset.data[0] = get_black_image()
+        full_dataset.targets[0] = 0  # arbitrary label (e.g., class "airplane")
+    else:
+        raise ValueError(f"Invalid database name: {database_name}")
+
+    if database_size is not None:
+        # Use the first database_size records
+        train_dataset = torch.utils.data.Subset(full_dataset, range(database_size))
+    else:
+        train_dataset = full_dataset
+
+    # Use the dataset
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-    model = convnet(num_classes=10).to(device)
+    model = model_class(num_classes=10).to(device)
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9)
 
     # Enable differential privacy
@@ -139,21 +135,32 @@ def compute_accuracy_privacy_point(batch_size=512, epochs=1, lr=0.1, sigma=1.0, 
         max_grad_norm=max_grad_norm,
     )
 
-    for _ in range(epochs):
+    epochs = max(epoch_list)
+    eval_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
+    final_losses = []
+    white_image_losses = []
+    black_image_losses = []
+    epsilons = []
+    deltas = []
+
+    for epoch in range(epochs):
         train(model, train_loader, optimizer, device)
 
-    # Evaluate final loss
-    eval_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
-    final_loss = evaluate_loss(model, eval_loader, device)
+        if epoch+1 in epoch_list:
+            final_losses.append(evaluate_loss(model, eval_loader, device))
+            white_image_losses.append(evaluate_image_loss(get_white_image(tensor_image = True), 0, model, device))
+            black_image_losses.append(evaluate_image_loss(get_black_image(tensor_image = True), 0, model, device))
+            epsilon = privacy_engine.accountant.get_epsilon(delta=1e-5)
+            epsilons.append(epsilon)
+            deltas.append(1e-5)
+
+            print(f"Final loss: {final_losses}")
+            print(f"White image loss: {white_image_losses}")
+            print(f"Black image loss: {black_image_losses}")
+            print(f"Achieved privacy: ε = {epsilons} for δ = {deltas[-1]}")
     
-    # Evaluate white image loss using the new function
-    white_image_loss = evaluate_image_loss(get_white_image(tensor_image = True), 0, model, device)
-    black_image_loss = evaluate_image_loss(get_black_image(tensor_image = True), 0, model, device)
-
-    # Output achieved privacy
-    epsilon = privacy_engine.accountant.get_epsilon(delta=1e-5)
-
-    return final_loss, (white_image_loss, black_image_loss), (epsilon, 1e-5)
+    return final_losses, white_image_losses, black_image_losses, epsilons, deltas
 
 if __name__ == "__main__":
     final_loss, (white_image_loss, black_image_loss), (epsilon, delta) = compute_accuracy_privacy_point(epochs=1)
