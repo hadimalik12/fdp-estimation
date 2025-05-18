@@ -1,3 +1,4 @@
+from functools import partial
 import logging
 import secrets
 import multiprocessing
@@ -23,6 +24,7 @@ from collections import OrderedDict
 from estimator.basic import _GeneralNaiveEstimator
 from estimator.ptlr import _PTLREstimator
 from auditor.basic import _GeneralNaiveAuditor
+from analysis.tradeoff_Gaussian import Gaussian_curve
 
 import os
 torch.set_num_threads(1)
@@ -54,7 +56,26 @@ def evaluate_loss(model, dataloader, device):
             total_samples += X.size(0)
     return total_loss / total_samples
 
-def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d_logit", model_name="convnet_balanced", num_samples=1000, num_train_samples=1000, num_test_samples=1000, h=0.01, eta_max=15, database_size=50000):    
+def generate_params(
+    data_args,
+    log_dir=None,
+    batch_size=512,
+    epochs=1,
+    lr=0.1,
+    sigma=1.0,
+    max_grad_norm=1.0,
+    device="cpu",
+    auditing_approach="1d_logit",
+    model_name="convnet_balanced",
+    num_samples=1000,
+    num_train_samples=1000,
+    num_test_samples=1000,
+    h=0.01,
+    eta_max=15,
+    database_size=50000,
+    gamma=0.05,
+    claimed_f=None
+):
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
 
@@ -92,6 +113,9 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
 
     if auditing_approach not in ["1d_logit", "1d_cross_entropy"]:
         raise ValueError(f"Auditing approach is undefined")
+
+    if claimed_f is None:
+        claimed_f = partial(Gaussian_curve, mean_difference=1.0)
     
     kwargs = {
         "sgd_alg":{
@@ -116,6 +140,8 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
         "num_test_samples" : num_test_samples,
         "h": h,
         "eta_max" : eta_max,
+        "gamma" : gamma,
+        "claimed_f" : claimed_f
     }
     return kwargs
 
@@ -507,5 +533,9 @@ class DPSGD_PTLREstimator(_PTLREstimator):
 class DPSGD_Auditor(_GeneralNaiveAuditor):
     def __init__(self, kwargs):
         super().__init__(kwargs=kwargs)
-        self.point_finder = DPSGD_PTLREstimator(kwargs)
-        self.point_estimator = DPSGD_Estimator(kwargs)
+        finder_kwargs = copy.deepcopy(kwargs)
+        finder_kwargs["sgd_alg"]["internal_result_path"] = os.path.join(kwargs["sgd_alg"]["internal_result_path"], "train")
+        self.point_finder = DPSGD_PTLREstimator(finder_kwargs)
+
+        estimator_kwargs = copy.deepcopy(kwargs)
+        self.point_estimator = DPSGD_Estimator(estimator_kwargs)
