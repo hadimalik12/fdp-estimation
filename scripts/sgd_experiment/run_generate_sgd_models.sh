@@ -4,7 +4,11 @@
 NUM_SAMPLES=32
 NUM_WORKERS=32
 INTERNAL_RESULT_PATH="/scratch/bell/wei402/fdp-estimation/results"
-MODEL_TYPE="CNN"
+MODEL_NAME="convnet_balanced"
+NUM_TRAIN_SAMPLES=1000
+NUM_TEST_SAMPLES=1000
+DATABASE_SIZE=1000
+EPOCHS=20
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

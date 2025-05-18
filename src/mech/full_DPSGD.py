@@ -147,7 +147,16 @@ def _train_model_worker(args):
     sampler_kwargs, positive = args
     torch.set_num_threads(1)
     sampler = DPSGDSampler(sampler_kwargs)
-    _, model_path = sampler.train_model(positive=positive)
+    model, model_path = sampler.train_model(positive=positive)
+    
+    # Explicitly clear model from memory
+    del model
+    torch.cuda.empty_cache() if torch.cuda.is_available() else None
+    
+    # Force garbage collection
+    import gc
+    gc.collect()
+    
     return model_path
 
 def _generate_sample_worker(args):
@@ -257,9 +266,11 @@ class DPSGDSampler:
         if self.auditing_approach_name == "1d_logit":
             self.dim_reduction_image = get_white_image(tensor_image=True)
             self.auditing_approach = self.project_model_to_one_dim_logit
+            self.dim = 1
         elif self.auditing_approach_name == "1d_cross_entropy":
             self.dim_reduction_image = get_white_image(tensor_image=True)
             self.auditing_approach = self.project_model_to_one_dim_cross_entropy
+            self.dim = 1
         
         self.reset_randomness()
     
@@ -270,6 +281,7 @@ class DPSGDSampler:
     
     def get_logger(self, file_path=None):
         logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
 
         
         # Create formatter
@@ -477,11 +489,11 @@ class DPSGDSampler:
 class DPSGD_Estimator(_GeneralNaiveEstimator):
     def __init__(self, kwargs):
         super().__init__(kwargs=kwargs)
-        train_kwargs = kwargs.copy()
+        train_kwargs = copy.deepcopy(kwargs)
         train_kwargs["sgd_alg"]["internal_result_path"] = os.path.join(kwargs["sgd_alg"]["internal_result_path"], "train")
         self.train_sampler = DPSGDSampler(train_kwargs)
 
-        test_kwargs = kwargs.copy()
+        test_kwargs = copy.deepcopy(kwargs)
         test_kwargs["sgd_alg"]["internal_result_path"] = os.path.join(kwargs["sgd_alg"]["internal_result_path"], "test")
         self.test_sampler = DPSGDSampler(test_kwargs)
 

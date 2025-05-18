@@ -25,7 +25,7 @@ os.makedirs(log_dir, exist_ok=True)
 sys.path.append(src_dir)
 
 from mech.full_DPSGD import get_white_image, get_black_image
-from mech.model_architecture import convnet
+from mech.model_architecture import convnet, resnet20
 
 logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(message)s",
@@ -163,8 +163,8 @@ def compute_accuracy_privacy_point(batch_size=512, epoch_list=[1], lr=0.1, sigma
     return final_losses, white_image_losses, black_image_losses, epsilons, deltas
 
 if __name__ == "__main__":
-    final_loss, (white_image_loss, black_image_loss), (epsilon, delta) = compute_accuracy_privacy_point(epochs=1)
+    final_losses, white_image_losses, black_image_losses, epsilons, deltas = compute_accuracy_privacy_point(epoch_list=[1], model_class=resnet20, database_size=1000, database_name="white_cifar10")
 
-    print(f"Loss on full dataset: {final_loss:.4f}")
-    print(f"Loss on white image: {white_image_loss:.4f}" + f"Loss on black image: {black_image_loss:.4f}")
-    print(f"Achieved privacy: ε = {epsilon:.4f} for δ = {delta}")
+    print(f"Loss on full dataset: {final_losses}")
+    print(f"Loss on white image: {white_image_losses}" + f"Loss on black image: {black_image_losses}")
+    print(f"Achieved privacy: ε = {epsilons} for δ = {deltas[-1]}")
