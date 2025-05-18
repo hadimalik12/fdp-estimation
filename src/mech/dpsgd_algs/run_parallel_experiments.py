@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 
@@ -18,9 +19,31 @@ import multiprocessing as mp
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from mech.dpsgd_algs.cnn1 import compute_accuracy_privacy_point as compute_accuracy_privacy_point_cnn1
-from mech.model_architecture import convnet
+from mech.dpsgd_algs.train_neural_network import compute_accuracy_privacy_point
+from mech.model_architecture import convnet, convnet_balanced
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Run parallel experiments with configurable parameters')
+    
+    parser.add_argument('--num_workers', type=int, default=20,
+                      help='Number of parallel workers to use')
+    parser.add_argument('--epochs_list', type=str, default='1,5,9,13,17',
+                      help='Comma-separated list of epochs to train for')
+    parser.add_argument('--database_size', type=int, default=1000,
+                      help='Size of the database to use for training')
+    parser.add_argument('--database_name', type=str, default='black_cifar10',
+                      choices=['black_cifar10', 'white_cifar10'],
+                      help='Name of the database to use')
+    parser.add_argument('--model_name', type=str, default='convnet_balanced',
+                      choices=['convnet', 'convnet_balanced'],
+                      help='Name of the model architecture to use')
+    
+    args = parser.parse_args()
+    
+    # Convert epochs_list from string to list of integers
+    args.epochs_list = [int(x) for x in args.epochs_list.split(',')]
+    
+    return args
 
 def run_single_experiment(args):
     """
@@ -35,10 +58,12 @@ def run_single_experiment(args):
     epochs_list, database_size, database_name, model_name = args
     if model_name == "convnet":
         model_class = convnet
+    elif model_name == "convnet_balanced":
+        model_class = convnet_balanced
     else:
         raise ValueError(f"Invalid model name: {model_name}")
 
-    final_losses, white_image_losses, black_image_losses, epsilons, deltas = compute_accuracy_privacy_point_cnn1(epoch_list=epochs_list, database_size=database_size, database_name=database_name, model_class=model_class)
+    final_losses, white_image_losses, black_image_losses, epsilons, deltas = compute_accuracy_privacy_point(epoch_list=epochs_list, database_size=database_size, database_name=database_name, model_class=model_class)
 
     return {
         'epochs': epochs_list,
@@ -240,11 +265,14 @@ def plot_epsilon_loss_curve_images(results, fig_dir = fig_dir, model_name = "con
 
 
 def main():
-    num_workers = 20
-    epochs_list = list(range(1, 4, 1))
-    database_size = 1000
-    database_name = "black_cifar10"
-    model_name = "convnet"
+    # Parse command line arguments
+    args = parse_args()
+
+    num_workers = args.num_workers
+    epochs_list = args.epochs_list
+    database_size = args.database_size
+    database_name = args.database_name
+    model_name = args.model_name
     
     # Run experiments with different epoch values
     results = run_parallel_experiments(epochs_list=epochs_list, num_workers=num_workers, database_size=database_size, database_name = database_name, model_name = model_name)

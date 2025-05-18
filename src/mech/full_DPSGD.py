@@ -252,10 +252,10 @@ class DPSGDSampler:
             raise ValueError(f"Auditing approach has not been implemented yet")
         
         if self.auditing_approach_name == "1d_logit":
-            self.dim_reduction_image = get_black_image(tensor_image=True)
+            self.dim_reduction_image = get_white_image(tensor_image=True)
             self.auditing_approach = self.project_model_to_one_dim_logit
         elif self.auditing_approach_name == "1d_cross_entropy":
-            self.dim_reduction_image = get_black_image(tensor_image=True)
+            self.dim_reduction_image = get_white_image(tensor_image=True)
             self.auditing_approach = self.project_model_to_one_dim_cross_entropy
         
         self.reset_randomness()
