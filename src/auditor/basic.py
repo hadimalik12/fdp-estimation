@@ -3,7 +3,7 @@ import numpy as np
 import logging
 import time
 
-from analysis.accuracy_analysis import knn_baybox_acc_bound_1d
+from analysis.accuracy_analysis import baybox_acc_bound
 
 class _GeneralNaiveAuditor:
     def __init__(self, kwargs):
@@ -81,7 +81,7 @@ class _GeneralNaiveAuditor:
         logging.info(f"Estimating Critical Point in {time.perf_counter() - tic:0.4f}s")
 
         # Inference
-        omega=knn_baybox_acc_bound_1d(self.point_estimator.num_train_samples, self.gamma)
+        omega=baybox_acc_bound(self.point_estimator.num_test_samples, self.gamma)
         self.output_["omega"] = omega
         self.output_["Report"] = self.check_violation(beta_estimate, alpha_estimate, omega)
 

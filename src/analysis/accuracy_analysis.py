@@ -41,6 +41,10 @@ def knn_baybox_acc_bound_1d(n, gamma):
     result = 12 * np.sqrt((2 * c_d ** 2 / n) * np.log(4 / gamma))
     return result
 
+def baybox_acc_bound(n, gamma):
+    result = np.sqrt(np.log(4/gamma)/(2*n))
+    return result
+
 
 def create_plot(omega, alpha_estimate, beta_estimate, fine_points, alpha, beta, the_alpha, the_beta, filename="plot.png", claimed_curve=Gaussian_curve):
     """
