@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 # Navigate to the parent directory of the project structure
 project_dir = os.path.abspath(os.getcwd())
 src_dir = os.path.join(project_dir, 'src')
@@ -14,13 +15,14 @@ data_dir = os.path.join(project_dir, 'data', 'dpsgd_algs')
 sys.path.append(src_dir)
 
 from mech.dpsgd_algs.run_parallel_experiments import load_results
+from mech.model_architecture import SUPPORTED_MODELS
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Compare two experiment results')
     
     # First result parameters
     parser.add_argument('--model1', type=str, required=True,
-                      choices=['convnet', 'convnet_balanced'],
+                      choices=SUPPORTED_MODELS,
                       help='Name of the first model architecture')
     parser.add_argument('--db1', type=str, required=True,
                       choices=['black_cifar10', 'white_cifar10'],
@@ -30,7 +32,7 @@ def parse_args():
     
     # Second result parameters
     parser.add_argument('--model2', type=str, required=True,
-                      choices=['convnet', 'convnet_balanced'],
+                      choices=SUPPORTED_MODELS,
                       help='Name of the second model architecture')
     parser.add_argument('--db2', type=str, required=True,
                       choices=['black_cifar10', 'white_cifar10'],

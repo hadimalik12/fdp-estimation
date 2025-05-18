@@ -18,8 +18,6 @@ def convnet(num_classes):
         nn.Linear(128, num_classes, bias=True),
     ) 
 
-import torch.nn as nn
-
 def convnet_balanced(num_classes):
     return nn.Sequential(
         nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
@@ -45,3 +43,9 @@ def convnet_balanced(num_classes):
         nn.Flatten(start_dim=1, end_dim=-1),
         nn.Linear(128, num_classes),
     )
+
+# List of supported neural network architectures
+MODEL_MAPPING = {
+    'convnet': convnet,
+    'convnet_balanced': convnet_balanced
+}

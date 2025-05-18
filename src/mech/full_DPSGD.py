@@ -25,10 +25,9 @@ from estimator.ptlr import _PTLREstimator
 from auditor.basic import _GeneralNaiveAuditor
 
 import os
-import shutil
 torch.set_num_threads(1)
 
-from .model_architecture import convnet
+from .model_architecture import MODEL_MAPPING
 
 def train(model, train_loader, optimizer, device):
     model.train()
@@ -55,7 +54,7 @@ def evaluate_loss(model, dataloader, device):
             total_samples += X.size(0)
     return total_loss / total_samples
 
-def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d_logit", model_type="CNN", num_samples=1000, num_train_samples=1000, num_test_samples=1000, h=0.01, eta_max=15):    
+def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", auditing_approach="1d_logit", model_name="convnet_balanced", num_samples=1000, num_train_samples=1000, num_test_samples=1000, h=0.01, eta_max=15, database_size=50000):    
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
 
@@ -72,7 +71,6 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
-
         x1 = CIFAR10(root=data_dir, train=True, download=True, transform=transform)
         x1.data[0] = get_white_image()
         x1.targets[0] = 0  # arbitrary label (e.g., class "airplane")
@@ -80,6 +78,10 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
         x0 = copy.deepcopy(x1)
         x0.data[0] = get_black_image()
         x0.targets[0] = 0  # arbitrary label (e.g., class "airplane")
+
+        if database_size < len(x1):
+            x1 = torch.utils.data.Subset(x1, range(database_size))
+            x0 = torch.utils.data.Subset(x0, range(database_size))
     else:
         raise ValueError(f"Neighboring database generation method is undefined")
     
@@ -100,7 +102,8 @@ def generate_params(data_args, log_dir=None, batch_size=512, epochs=1, lr=0.1, s
             "max_grad_norm": max_grad_norm,
             "device": device,
             "internal_result_path": data_args["internal_result_path"],
-            "model_type": model_type
+            "model_name": model_name,
+            "database_size": database_size
         },
         "dataset":{
             "x0": x0,
@@ -223,13 +226,13 @@ class DPSGDSampler:
         self.sigma = kwargs["sgd_alg"]["sigma"]
         self.max_grad_norm = kwargs["sgd_alg"]["max_grad_norm"]
         self.device = kwargs["sgd_alg"]["device"]
+        self.database_size = kwargs["sgd_alg"]["database_size"]
 
-        model_type = kwargs["sgd_alg"]["model_type"]
-        if model_type == "CNN":
-            self.model_type = "CNN"
-            self.model_class = convnet
-        else:
-            raise ValueError(f"Model type is undefined")
+        self.model_name = kwargs["sgd_alg"]["model_name"]
+
+        if self.model_name not in MODEL_MAPPING:
+            raise ValueError(f"Unsupported model type: {self.model_name}. Supported types are: {list(MODEL_MAPPING.keys())}")
+        self.model_class = MODEL_MAPPING[self.model_name]
         
         self.bot = -DUMMY_CONSTANT
         seed = secrets.randbits(128)
@@ -244,7 +247,7 @@ class DPSGDSampler:
         # Log the information about the CNN sampler
         self.logger = self.get_logger(kwargs["log_file_path"])
         self.logger.info("Initialized %s_DPSGDSampler with parameters: batch_size=%d, epochs=%d, lr=%.2f, sigma=%.2f, max_grad_norm=%.2f, device=%s", 
-                    self.model_type, self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
+                    self.model_name, self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
         
         # Set up auditing approach
         self.auditing_approach_name = kwargs["auditing_approach"]
@@ -367,7 +370,7 @@ class DPSGDSampler:
         
         # Save model
         run_id = ''.join(f'{self.rng.randint(0, 16):x}' for _ in range(16))
-        model_name = f"{self.model_type}_model_x0_{run_id}.pt" if not positive else f"{self.model_type}_model_x1_{run_id}.pt"
+        model_name = f"{self.model_name}_model_x0_{run_id}.pt" if not positive else f"{self.model_name}_model_x1_{run_id}.pt"
         model_path = os.path.join(self.model_folder, model_name)
         torch.save(model.state_dict(), model_path)
 
@@ -377,11 +380,11 @@ class DPSGDSampler:
     
     def preprocess(self, num_samples, num_workers=1, reset = False):
         # First, check if enought samples are already generated
-        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_type}')
+        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_name}')
         os.makedirs(samples_dir, exist_ok=True)
         try:
-            samples_P = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_type}.csv'), delimiter=',')
-            samples_Q = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_type}.csv'), delimiter=',')
+            samples_P = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_name}.csv'), delimiter=',')
+            samples_Q = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_name}.csv'), delimiter=',')
             if reset == False and len(samples_P) >= num_samples and len(samples_Q) >= num_samples:
                 self.logger.info(f"Found {num_samples} samples in {samples_dir}. Skipping generation.")
                 self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P[:num_samples]), np.array(samples_Q[:num_samples]))
@@ -394,8 +397,8 @@ class DPSGDSampler:
 
         if reset == False:
             # Second try to read existing models from the model folder
-            existing_negative_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x0_") and f.endswith(".pt")]
-            existing_positive_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_type}_model_x1_") and f.endswith(".pt")]
+            existing_negative_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_name}_model_x0_") and f.endswith(".pt")]
+            existing_positive_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_name}_model_x1_") and f.endswith(".pt")]
             
             # Determine how many models we can load
             num_existing_samples = min(len(existing_negative_models_paths), len(existing_positive_models_paths))
@@ -429,11 +432,11 @@ class DPSGDSampler:
         self.computed_samples = num_samples
 
         # Save samples
-        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_type}')
+        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_name}')
         os.makedirs(samples_dir, exist_ok=True)
         
-        np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_type}.csv'), samples_P, delimiter=',')
-        np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_type}.csv'), samples_Q, delimiter=',')
+        np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_name}.csv'), samples_P, delimiter=',')
+        np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_name}.csv'), samples_Q, delimiter=',')
         
         return (self.samples_P, self.samples_Q)
     

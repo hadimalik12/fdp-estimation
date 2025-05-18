@@ -10,7 +10,19 @@ MODEL_TYPE="CNN"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --num_samples)
-            NUM_SAMPLES="$2"
+            NUM_TRAIN_SAMPLES="$2"
+            shift 2
+            ;;
+        --num_test_samples)
+            NUM_TEST_SAMPLES="$2"
+            shift 2
+            ;;
+        --database_size)
+            DATABASE_SIZE="$2"
+            shift 2
+            ;;
+        --epochs)
+            EPOCHS="$2"
             shift 2
             ;;
         --num_workers)
@@ -21,8 +33,8 @@ while [[ $# -gt 0 ]]; do
             INTERNAL_RESULT_PATH="$2"
             shift 2
             ;;
-        --model_type)
-            MODEL_TYPE="$2"
+        --model_name)
+            MODEL_NAME="$2"
             shift 2
             ;;
         *)
@@ -33,15 +45,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Print configuration
-echo "Running generate_sgd_samples.py with:"
-echo "Number of samples: $NUM_SAMPLES"
+echo "Running generate_sgd_models.py with:"
+echo "Number of training samples: $NUM_TRAIN_SAMPLES"
+echo "Number of test samples: $NUM_TEST_SAMPLES"
+echo "Database size: $DATABASE_SIZE"
+echo "Number of epochs: $EPOCHS"
 echo "Number of workers: $NUM_WORKERS"
 echo "Internal result path: $INTERNAL_RESULT_PATH"
-echo "Model type: $MODEL_TYPE"
+echo "Model name: $MODEL_NAME"
 # Run the script
 
 python scripts/sgd_experiment/generate_sgd_models.py \
-    --num_samples $NUM_SAMPLES \
-    --num_workers $NUM_WORKERS \
-    --internal_result_path $INTERNAL_RESULT_PATH \
-    --model_type $MODEL_TYPE
+        --num_train_samples $NUM_TRAIN_SAMPLES \
+        --num_test_samples $NUM_TEST_SAMPLES \
+        --database_size $DATABASE_SIZE \
+        --epochs $EPOCHS \
+        --num_workers $NUM_WORKERS \
+        --internal_result_path $INTERNAL_RESULT_PATH \
+        --model_name $MODEL_NAME
