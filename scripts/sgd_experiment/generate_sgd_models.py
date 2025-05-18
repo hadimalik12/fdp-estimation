@@ -23,10 +23,9 @@ if src_dir not in sys.path:
 
 import mech.full_DPSGD as DPSGDModule
 from mech.full_DPSGD import parallel_train_models
-from mech.model_architecture import MODEL_MAPPING
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate samples from DPSGD distributions')
+    parser = argparse.ArgumentParser(description='Generate models from DPSGD distributions')
     parser.add_argument('--num_train_samples', type=int, default=1000,
                       help='Number of samples to generate for training (default: 1000)')
     parser.add_argument('--num_test_samples', type=int, default=1000,
@@ -56,7 +55,7 @@ def main():
     os.makedirs(log_dir, exist_ok=True)
 
     start_time = time.time()
-    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size)
+    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs)
     parallel_train_models(sampler_args, args.num_train_samples, num_workers=args.num_workers)
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -70,7 +69,7 @@ def main():
     }
 
     start_time = time.time()
-    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size)
+    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs)
     parallel_train_models(sampler_args, args.num_test_samples, num_workers=args.num_workers)
     end_time = time.time()
     elapsed_time = end_time - start_time

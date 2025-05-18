@@ -25,37 +25,52 @@ import mech.full_DPSGD as DPSGDModule
 
 def main():
     parser = argparse.ArgumentParser(description='Generate samples from DPSGD distributions')
-    parser.add_argument('--num_samples', type=int, default=1,
-                      help='Number of samples to generate (default: 1)')
+    parser.add_argument('--num_train_samples', type=int, default=1000,
+                      help='Number of samples to generate for training (default: 1000)')
+    parser.add_argument('--num_test_samples', type=int, default=1000,
+                      help='Number of samples to generate for testing (default: 1000)')
     parser.add_argument('--internal_result_path', type=str, 
                       default="/scratch/bell/wei402/fdp-estimation/results",
                       help='Path to store internal results')
     parser.add_argument('--num_workers', type=int, default=1,
                       help='Number of workers to use for parallel processing (default: 1)')
-    parser.add_argument('--model_type', type=str, default="CNN",
-                      help='Type of model to use (default: CNN)')
+    parser.add_argument('--model_name', type=str, default="convnet_balanced",
+                      help='Type of model to use (default: convnet_balanced)')
+    parser.add_argument('--database_size', type=int, default=1000,
+                      help='Size of the database to use for training')
+    parser.add_argument('--epochs', type=int, default=1,
+                      help='Number of epochs to train for')
+    parser.add_argument('--auditing_approach', type=str, default="1d_cross_entropy",
+                      help='Auditing approach to use (default: 1d_cross_entropy)')
+
     args = parser.parse_args()
+    internal_result_path_prefix = os.path.join(args.internal_result_path, args.model_name+'_'+str(args.database_size)+'_'+str(args.epochs))
 
     data_args = {
         "method": "default",
         "data_dir": data_dir,
-        "internal_result_path": args.internal_result_path
+        "internal_result_path": os.path.join(internal_result_path_prefix, 'train')
     }
 
-    log_dir = os.path.join(project_dir, 'log', args.model_type)
+    log_dir = os.path.join(project_dir, 'log', args.model_name)
     os.makedirs(log_dir, exist_ok=True)
-    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_type=args.model_type)
+    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs, auditing_approach=args.auditing_approach)
     
     sampler = DPSGDModule.DPSGDSampler(sampler_args)
 
-    samples_P, samples_Q = sampler.preprocess(num_samples=args.num_samples, num_workers=args.num_workers)
+    sampler.preprocess(num_samples=args.num_train_samples, num_workers=args.num_workers)
 
-    samples_dir = os.path.join(data_dir, f'samples_{args.model_type}')
-    os.makedirs(samples_dir, exist_ok=True)
-    
-    # Save samples to CSV files
-    np.savetxt(os.path.join(samples_dir, f'prediction_d_{args.model_type}.csv'), samples_P, delimiter=',')
-    np.savetxt(os.path.join(samples_dir, f'prediction_dprime_{args.model_type}.csv'), samples_Q, delimiter=',')
+    data_args = {
+        "method": "default",
+        "data_dir": data_dir,
+        "internal_result_path": os.path.join(internal_result_path_prefix, 'test')
+    }
+    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs, auditing_approach=args.auditing_approach)
+    sampler = DPSGDModule.DPSGDSampler(sampler_args)
+
+    sampler.preprocess(num_samples=args.num_test_samples, num_workers=args.num_workers)
+
+
 
 if __name__ == "__main__":
     main()

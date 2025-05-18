@@ -9,7 +9,7 @@ MODEL_TYPE="CNN"
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --num_samples)
+        --num_train_samples)
             NUM_TRAIN_SAMPLES="$2"
             shift 2
             ;;
