@@ -56,8 +56,9 @@ source /tmp/fdp-env/bin/activate
     --epochs 20 \
     --num_workers 64 \
     --internal_result_path "/scratch/bell/wei402/fdp-estimation/results" \
-    --model_name "resnet20" \
-    --auditing_approach "1d_cross_entropy"
+    --model_name "convnet_balanced" \
+    --auditing_approach "1d_KLDivLoss" \
+    --intermediate_epoch_list "[1, 5, 10, 15, 20]"
 
 # Calculate and print total time
 end_time=$(date +%s)
