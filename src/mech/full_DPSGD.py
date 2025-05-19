@@ -27,6 +27,7 @@ from auditor.basic import _GeneralNaiveAuditor
 from analysis.tradeoff_Gaussian import Gaussian_curve
 
 import os
+import gc
 torch.set_num_threads(1)
 
 from .model_architecture import MODEL_MAPPING
@@ -180,7 +181,6 @@ def _train_model_worker(args):
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
     
     # Force garbage collection
-    import gc
     gc.collect()
     
     return model_path
@@ -288,15 +288,20 @@ class DPSGDSampler:
         self.auditing_approach_name = kwargs["auditing_approach"]
         if self.auditing_approach_name == "kd" or self.auditing_approach_name == "full":
             raise ValueError(f"Auditing approach has not been implemented yet")
+
+        
         
         if self.auditing_approach_name == "1d_logit":
-            self.dim_reduction_image = get_white_image(tensor_image=True)
             self.auditing_approach = self.project_model_to_one_dim_logit
             self.dim = 1
         elif self.auditing_approach_name == "1d_cross_entropy":
-            self.dim_reduction_image = get_white_image(tensor_image=True)
             self.auditing_approach = self.project_model_to_one_dim_cross_entropy
             self.dim = 1
+        
+        if self.model_name in ["convnet", "convnet_balanced"]:
+            self.dim_reduction_image = get_black_image(tensor_image=True)
+        elif self.model_name in ["resnet20"]:
+            self.dim_reduction_image = get_white_image(tensor_image=True)
         
         self.reset_randomness()
     

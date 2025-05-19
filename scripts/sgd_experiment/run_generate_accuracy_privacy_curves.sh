@@ -5,7 +5,7 @@ NUM_WORKERS=20
 EPOCHS_LIST="1,5,9,13,17"
 DATABASE_SIZE=1000
 DATABASE_NAME="white_cifar10"
-MODEL_NAME="convnet_balanced"
+MODEL_NAME="resnet20"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -45,8 +45,8 @@ echo "Database size: $DATABASE_SIZE"
 echo "Database name: $DATABASE_NAME"
 echo "Model name: $MODEL_NAME"
 
-# Run the experiment
-python -m mech.dpsgd_algs.run_parallel_experiments \
+# Add src directory to PYTHONPATH and run the experiment
+python src/mech/dpsgd_algs/run_parallel_experiments.py \
     --num_workers $NUM_WORKERS \
     --epochs_list $EPOCHS_LIST \
     --database_size $DATABASE_SIZE \

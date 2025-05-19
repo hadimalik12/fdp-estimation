@@ -20,7 +20,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from mech.dpsgd_algs.train_neural_network import compute_accuracy_privacy_point
-from mech.model_architecture import convnet, convnet_balanced
+from mech.model_architecture import MODEL_MAPPING
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run parallel experiments with configurable parameters')
@@ -35,7 +35,7 @@ def parse_args():
                       choices=['black_cifar10', 'white_cifar10'],
                       help='Name of the database to use')
     parser.add_argument('--model_name', type=str, default='convnet_balanced',
-                      choices=['convnet', 'convnet_balanced'],
+                      choices=list(MODEL_MAPPING.keys()),
                       help='Name of the model architecture to use')
     
     args = parser.parse_args()
@@ -56,12 +56,7 @@ def run_single_experiment(args):
         Dictionary containing results for each metric
     """
     epochs_list, database_size, database_name, model_name = args
-    if model_name == "convnet":
-        model_class = convnet
-    elif model_name == "convnet_balanced":
-        model_class = convnet_balanced
-    else:
-        raise ValueError(f"Invalid model name: {model_name}")
+    model_class = MODEL_MAPPING[model_name]
 
     final_losses, white_image_losses, black_image_losses, epsilons, deltas = compute_accuracy_privacy_point(epoch_list=epochs_list, database_size=database_size, database_name=database_name, model_class=model_class)
 

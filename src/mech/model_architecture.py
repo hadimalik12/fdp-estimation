@@ -21,10 +21,10 @@ class BasicBlock(nn.Module):
             )
 
     def forward(self, x):
-        out = nn.ReLU()(self.gn1(self.conv1(x)))
+        out = nn.LeakyReLU(0.01)(self.gn1(self.conv1(x)))
         out = self.gn2(self.conv2(out))
         out += self.shortcut(x)
-        out = nn.ReLU()(out)
+        out = nn.LeakyReLU(0.01)(out)
         return out
 
 def convnet(num_classes):
@@ -93,7 +93,7 @@ def resnet20(num_classes):
             return nn.Sequential(*layers)
 
         def forward(self, x):
-            out = nn.ReLU()(self.gn1(self.conv1(x)))
+            out = nn.LeakyReLU(0.01)(self.gn1(self.conv1(x)))
             out = self.layer1(out)
             out = self.layer2(out)
             out = self.layer3(out)
