@@ -77,7 +77,7 @@ mkdir -p "$KERNEL_DIR"
 cat > "$KERNEL_DIR/kernel.json" <<EOL
 {
   "argv": [
-    "$(pwd)/scripts/local_scripts/r-bell-kernel-install.sh",
+    "$HOME/Desktop/fdp-estimation/scripts/local_scripts/r-bell-kernel-install.sh",
     "/tmp/fdp-env/bin/python",
     "-m",
     "ipykernel_launcher",

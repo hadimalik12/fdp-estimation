@@ -10,12 +10,14 @@ import sys
 import argparse
 import numpy as np
 import ast
+import copy
 # Navigate to the parent directory of the project structure
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 src_dir = os.path.join(project_dir, 'src')
 fig_dir = os.path.join(project_dir, 'fig')
 data_dir = os.path.join(project_dir, 'data')
 log_dir = os.path.join(project_dir, 'log')
+
 
 # Add the src directory to sys.path
 if src_dir not in sys.path:
@@ -66,10 +68,16 @@ def main():
     log_dir = os.path.join(project_dir, 'log', args.model_name)
     os.makedirs(log_dir, exist_ok=True)
     sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs, auditing_approach=args.auditing_approach, intermediate_epoch_list=args.intermediate_epoch_list)
-    
-    sampler = DPSGDModule.DPSGDSampler(sampler_args)
 
+    sampler = DPSGDModule.DPSGDSampler(sampler_args)
     sampler.preprocess(num_samples=args.num_train_samples, num_workers=args.num_workers)
+
+    for epoch in args.intermediate_epoch_list:
+        epoch_args = copy.deepcopy(sampler_args)
+        epoch_args["sgd_alg"]["epochs"] = epoch
+        sampler = DPSGDModule.DPSGDSampler(epoch_args)
+        sampler.preprocess(num_samples=args.num_train_samples, num_workers=args.num_workers)
+
 
     data_args = {
         "method": "default",
@@ -80,6 +88,12 @@ def main():
     sampler = DPSGDModule.DPSGDSampler(sampler_args)
 
     sampler.preprocess(num_samples=args.num_test_samples, num_workers=args.num_workers)
+
+    for epoch in args.intermediate_epoch_list:
+        epoch_args = copy.deepcopy(sampler_args)
+        epoch_args["sgd_alg"]["epochs"] = epoch
+        sampler = DPSGDModule.DPSGDSampler(epoch_args)
+        sampler.preprocess(num_samples=args.num_test_samples, num_workers=args.num_workers)
 
 
 

@@ -76,7 +76,7 @@ def generate_params(
     database_size=50000,
     gamma=0.05,
     claimed_f=None,
-    intermediate_epoch_list=[1]
+    intermediate_epoch_list=[]
 ):
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
@@ -118,6 +118,9 @@ def generate_params(
 
     if claimed_f is None:
         claimed_f = partial(Gaussian_curve, mean_difference=1.0)
+    
+    if len(intermediate_epoch_list) == 0:
+        intermediate_epoch_list = [epochs]
     
     kwargs = {
         "sgd_alg":{
