@@ -5,11 +5,11 @@ NUM_SAMPLES=32
 NUM_WORKERS=32
 INTERNAL_RESULT_PATH="/scratch/bell/wei402/fdp-estimation/results"
 MODEL_NAME="convnet_balanced"
-NUM_TRAIN_SAMPLES=1000
-NUM_TEST_SAMPLES=1000
+NUM_TRAIN_SAMPLES=10
+NUM_TEST_SAMPLES=10
 DATABASE_SIZE=1000
 EPOCHS=20
-
+INTERMEDIATE_EPOCH_LIST="[1, 5, 10, 15, 20]"
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,6 +41,10 @@ while [[ $# -gt 0 ]]; do
             MODEL_NAME="$2"
             shift 2
             ;;
+        --intermediate_epoch_list)
+            INTERMEDIATE_EPOCH_LIST="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown parameter: $1"
             exit 1
@@ -57,6 +61,7 @@ echo "Number of epochs: $EPOCHS"
 echo "Number of workers: $NUM_WORKERS"
 echo "Internal result path: $INTERNAL_RESULT_PATH"
 echo "Model name: $MODEL_NAME"
+echo "Intermediate epochs: $INTERMEDIATE_EPOCH_LIST"
 # Run the script
 
 python scripts/sgd_experiment/generate_sgd_models.py \
@@ -66,4 +71,5 @@ python scripts/sgd_experiment/generate_sgd_models.py \
         --epochs $EPOCHS \
         --num_workers $NUM_WORKERS \
         --internal_result_path $INTERNAL_RESULT_PATH \
-        --model_name $MODEL_NAME
+        --model_name $MODEL_NAME \
+        --intermediate_epoch_list "$INTERMEDIATE_EPOCH_LIST"

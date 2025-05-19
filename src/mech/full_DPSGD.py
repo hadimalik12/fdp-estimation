@@ -75,7 +75,8 @@ def generate_params(
     eta_max=15,
     database_size=50000,
     gamma=0.05,
-    claimed_f=None
+    claimed_f=None,
+    intermediate_epoch_list=[1]
 ):
     # This function generates parameters for training and dataset setup, including
     # configurations for the SGD algorithm and neighboring datasets for differential privacy.
@@ -122,6 +123,7 @@ def generate_params(
         "sgd_alg":{
             "batch_size": batch_size,
             "epochs": epochs,
+            "intermediate_epoch_list": intermediate_epoch_list,
             "lr": lr,
             "sigma": sigma,
             "max_grad_norm": max_grad_norm,
@@ -251,12 +253,15 @@ class DPSGDSampler:
     """
     def __init__(self, kwargs):
         self.kwargs = kwargs
+
+        # Set up dataset
         self.x0 = kwargs["dataset"]["x0"]
         self.x1 = kwargs["dataset"]["x1"]
-        self.internal_result_path = kwargs["sgd_alg"]["internal_result_path"]
-
+        
+        # Set up SGD algorithm
         self.batch_size = kwargs["sgd_alg"]["batch_size"]
         self.epochs = kwargs["sgd_alg"]["epochs"]
+        assert isinstance(self.epochs, int) and self.epochs > 0, "epochs must be a positive integer"
         self.lr = kwargs["sgd_alg"]["lr"]
         self.sigma = kwargs["sgd_alg"]["sigma"]
         self.max_grad_norm = kwargs["sgd_alg"]["max_grad_norm"]
@@ -264,32 +269,19 @@ class DPSGDSampler:
         self.database_size = kwargs["sgd_alg"]["database_size"]
 
         self.model_name = kwargs["sgd_alg"]["model_name"]
-
         if self.model_name not in MODEL_MAPPING:
             raise ValueError(f"Unsupported model type: {self.model_name}. Supported types are: {list(MODEL_MAPPING.keys())}")
         self.model_class = MODEL_MAPPING[self.model_name]
-        
+
+
+        # Set up Randomness
         self.bot = -DUMMY_CONSTANT
-        seed = secrets.randbits(128)
-        self.rng = RandomState(MT19937(seed))
+        self.reset_randomness()
 
-        # Set up model folder
-        self.model_folder = os.path.join(self.internal_result_path, "model_folder")
-        self.samples_folder = os.path.join(self.internal_result_path, "samples_folder")
-
-        os.makedirs(self.model_folder, exist_ok=True)
-        os.makedirs(self.samples_folder, exist_ok=True)
-        # Log the information about the CNN sampler
-        self.logger = self.get_logger(kwargs["log_file_path"])
-        self.logger.info("Initialized %s_DPSGDSampler with parameters: batch_size=%d, epochs=%d, lr=%.2f, sigma=%.2f, max_grad_norm=%.2f, device=%s", 
-                    self.model_name, self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
-        
         # Set up auditing approach
         self.auditing_approach_name = kwargs["auditing_approach"]
         if self.auditing_approach_name == "kd" or self.auditing_approach_name == "full":
-            raise ValueError(f"Auditing approach has not been implemented yet")
-
-        
+            raise ValueError(f"Auditing approach has not been implemented yet")     
         
         if self.auditing_approach_name == "1d_logit":
             self.auditing_approach = self.project_model_to_one_dim_logit
@@ -306,7 +298,32 @@ class DPSGDSampler:
         elif self.model_name in ["resnet20"]:
             self.dim_reduction_image = get_white_image(tensor_image=True)
         
-        self.reset_randomness()
+        
+        # Set up internal result path
+        self.internal_result_path_prefix = kwargs["sgd_alg"]["internal_result_path"]
+
+        self.intermediate_epoch_list = kwargs["sgd_alg"]["intermediate_epoch_list"]
+        assert isinstance(self.intermediate_epoch_list, list) and all(isinstance(epoch, int) and epoch > 0 for epoch in self.intermediate_epoch_list), "intermediate_epoch_list must be a list of positive integers"
+        if self.epochs not in self.intermediate_epoch_list:
+            self.intermediate_epoch_list.append(self.epochs)
+            self.intermediate_epoch_list.sort()
+        self.intermediate_epoch_list = np.array(self.intermediate_epoch_list)
+        
+        self.model_folder_mapping = {}
+        self.samples_folder_mapping = {}
+        for intermediate_epoch in self.intermediate_epoch_list:
+            internal_result_path = os.path.join(self.internal_result_path_prefix, self.model_name+'_'+str(self.database_size)+'_'+str(intermediate_epoch))
+            self.model_folder_mapping[intermediate_epoch] = os.path.join(internal_result_path, "model_folder")
+            self.samples_folder_mapping[intermediate_epoch] = os.path.join(internal_result_path, "samples_folder")
+            os.makedirs(self.model_folder_mapping[intermediate_epoch], exist_ok=True)
+            os.makedirs(self.samples_folder_mapping[intermediate_epoch], exist_ok=True)
+
+        # Log the information about the CNN sampler
+        self.logger = self.get_logger(kwargs["log_file_path"])
+        self.logger.info("Initialized %s_DPSGDSampler with parameters: batch_size=%d, epochs=%d, lr=%.2f, sigma=%.2f, max_grad_norm=%.2f, device=%s", 
+                    self.model_name, self.batch_size, self.epochs, self.lr, self.sigma, self.max_grad_norm, self.device)
+        
+
     
     def reset_randomness(self):
         seed = secrets.randbits(128)
@@ -434,23 +451,23 @@ class DPSGDSampler:
         )
 
         # Train model
-        for _ in range(self.epochs):
+        for epoch in range(1, self.epochs+1):
             train(model, train_loader, optimizer, device)
-        
-        # Save model
-        run_id = ''.join(f'{self.rng.randint(0, 16):x}' for _ in range(16))
-        model_name = f"{self.model_name}_model_x0_{run_id}.pt" if not positive else f"{self.model_name}_model_x1_{run_id}.pt"
-        model_path = os.path.join(self.model_folder, model_name)
-        torch.save(model.state_dict(), model_path)
 
-        self.logger.debug(f"Model saved to {model_path}")
+            if epoch in self.intermediate_epoch_list:
+                # Save model
+                run_id = ''.join(f'{self.rng.randint(0, 16):x}' for _ in range(16))
+                model_name = f"{self.model_name}_model_x0_{run_id}.pt" if not positive else f"{self.model_name}_model_x1_{run_id}.pt"
+                model_path = os.path.join(self.model_folder_mapping[epoch], model_name)
+                torch.save(model.state_dict(), model_path)
+                self.logger.debug(f"Model saved to {model_path}")
 
         return model, model_path
     
     def preprocess(self, num_samples, num_workers=1, reset = False):
         # First, check if enought samples are already generated
-        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_name}')
-        os.makedirs(samples_dir, exist_ok=True)
+        samples_dir = self.samples_folder_mapping[self.epochs]
+
         try:
             samples_P = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_name}.csv'), delimiter=',')
             samples_Q = np.loadtxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_name}.csv'), delimiter=',')
@@ -466,8 +483,8 @@ class DPSGDSampler:
 
         if reset == False:
             # Second try to read existing models from the model folder
-            existing_negative_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_name}_model_x0_") and f.endswith(".pt")]
-            existing_positive_models_paths = [os.path.join(self.model_folder, f) for f in os.listdir(self.model_folder) if f.startswith(f"{self.model_name}_model_x1_") and f.endswith(".pt")]
+            existing_negative_models_paths = [os.path.join(self.model_folder_mapping[self.epochs], f) for f in os.listdir(self.model_folder_mapping[self.epochs]) if f.startswith(f"{self.model_name}_model_x0_") and f.endswith(".pt")]
+            existing_positive_models_paths = [os.path.join(self.model_folder_mapping[self.epochs], f) for f in os.listdir(self.model_folder_mapping[self.epochs]) if f.startswith(f"{self.model_name}_model_x1_") and f.endswith(".pt")]
             
             # Determine how many models we can load
             num_existing_samples = min(len(existing_negative_models_paths), len(existing_positive_models_paths))
@@ -500,10 +517,7 @@ class DPSGDSampler:
         self.samples_P, self.samples_Q = _ensure_2dim(np.array(samples_P), np.array(samples_Q))
         self.computed_samples = num_samples
 
-        # Save samples
-        samples_dir = os.path.join(self.samples_folder, f'samples_{self.model_name}')
-        os.makedirs(samples_dir, exist_ok=True)
-        
+        # Save samples        
         np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_d_{self.model_name}.csv'), samples_P, delimiter=',')
         np.savetxt(os.path.join(samples_dir, f'{self.auditing_approach_name}_dprime_{self.model_name}.csv'), samples_Q, delimiter=',')
         

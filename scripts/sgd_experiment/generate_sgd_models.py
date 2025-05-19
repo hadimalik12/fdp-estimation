@@ -9,6 +9,7 @@ import os
 import sys
 import argparse
 import time
+import ast
 
 # Navigate to the parent directory of the project structure
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -41,21 +42,32 @@ def main():
                       help='Size of the database to use for training')
     parser.add_argument('--epochs', type=int, default=1,
                       help='Number of epochs to train for')
+    parser.add_argument('--intermediate_epoch_list', type=str, default="[1, 5]",
+                      help='List of intermediate epochs to store results from (format: "[1, 5, 10]")')
 
     args = parser.parse_args()
-    internal_result_path_prefix = os.path.join(args.internal_result_path, args.model_name+'_'+str(args.database_size)+'_'+str(args.epochs))
+
+    # Convert string representation of list to actual list
+    try:
+        args.intermediate_epoch_list = ast.literal_eval(args.intermediate_epoch_list)
+        if not isinstance(args.intermediate_epoch_list, list):
+            raise ValueError("intermediate_epoch_list must be a list")
+    except (ValueError, SyntaxError) as e:
+        print(f"Error parsing intermediate_epoch_list: {e}")
+        print(f"Received value: {args.intermediate_epoch_list}")
+        sys.exit(1)
 
     data_args = {
         "method": "default",
         "data_dir": data_dir,
-        "internal_result_path": os.path.join(internal_result_path_prefix, 'train')
+        "internal_result_path": os.path.join(args.internal_result_path, 'train')
     }
 
     log_dir = os.path.join(project_dir, 'log', args.model_name)
     os.makedirs(log_dir, exist_ok=True)
 
     start_time = time.time()
-    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs)
+    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs, intermediate_epoch_list=args.intermediate_epoch_list)
     parallel_train_models(sampler_args, args.num_train_samples, num_workers=args.num_workers)
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -65,11 +77,11 @@ def main():
     data_args = {
         "method": "default",
         "data_dir": data_dir,
-        "internal_result_path": os.path.join(internal_result_path_prefix, 'test')
+        "internal_result_path": os.path.join(args.internal_result_path, 'test')
     }
 
     start_time = time.time()
-    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs)
+    sampler_args = DPSGDModule.generate_params(data_args=data_args, log_dir=log_dir, model_name=args.model_name, database_size=args.database_size, epochs=args.epochs, intermediate_epoch_list=args.intermediate_epoch_list)
     parallel_train_models(sampler_args, args.num_test_samples, num_workers=args.num_workers)
     end_time = time.time()
     elapsed_time = end_time - start_time
