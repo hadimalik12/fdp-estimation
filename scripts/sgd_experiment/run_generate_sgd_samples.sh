@@ -9,7 +9,7 @@ NUM_TRAIN_SAMPLES=1000
 NUM_TEST_SAMPLES=1000
 DATABASE_SIZE=1000
 EPOCHS=20
-AUDITING_APPROACH="1d_cross_entropy"
+AUDITING_APPROACH="1d_logit"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

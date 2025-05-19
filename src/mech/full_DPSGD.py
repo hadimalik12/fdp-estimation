@@ -112,7 +112,7 @@ def generate_params(
     else:
         log_file_path = None
 
-    if auditing_approach not in ["1d_logit", "1d_cross_entropy"]:
+    if auditing_approach not in ["1d_logit", "1d_cross_entropy", "1d_KLDivLoss"]:
         raise ValueError(f"Auditing approach is undefined")
 
     if claimed_f is None:
@@ -191,7 +191,7 @@ def _generate_sample_worker(args):
     sampler = DPSGDSampler(sampler_kwargs)
     results = []
 
-    if sampler.auditing_approach_name not in ["1d_logit", "1d_cross_entropy"]:
+    if sampler.auditing_approach_name not in ["1d_logit", "1d_cross_entropy", "1d_KLDivLoss"]:
         raise ValueError(f"Auditing approach is undefined")
 
     for model_path in model_path_list:
@@ -297,6 +297,9 @@ class DPSGDSampler:
         elif self.auditing_approach_name == "1d_cross_entropy":
             self.auditing_approach = self.project_model_to_one_dim_cross_entropy
             self.dim = 1
+        elif self.auditing_approach_name == "1d_KLDivLoss":
+            self.auditing_approach = self.project_model_to_one_dim_KLDivLoss
+            self.dim = 1
         
         if self.model_name in ["convnet", "convnet_balanced"]:
             self.dim_reduction_image = get_black_image(tensor_image=True)
@@ -383,6 +386,29 @@ class DPSGDSampler:
         target = torch.tensor([0], dtype=torch.long)
         loss = nn.CrossEntropyLoss()(logits, target)
         score = loss.item()
+
+        return score
+    
+    def project_model_to_one_dim_KLDivLoss(self, model):
+        # This method projects the model's output to a one-dimensional value, allowing the use of kernel density estimation techniques.
+        # The projection is done by taking the softmax output of the model 
+        model.eval()
+        logits = model(self.dim_reduction_image)
+
+        # Create one-hot encoded target distribution
+        target = torch.zeros_like(logits)
+        target[0, 0] = 1.0  # Set probability 1.0 for class 0
+        
+        log_softmax = torch_F.log_softmax(logits, dim=1)
+        loss = torch_F.kl_div(log_softmax, target, reduction='batchmean')
+        score = loss.item()
+
+        return score
+
+    def project_flatter(self, model):
+        model.eval()
+        logits = model(self.dim_reduction_image)
+        score = logits.squeeze()[0].item()  # get the first logit value directly without softmax
 
         return score
     

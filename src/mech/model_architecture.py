@@ -12,6 +12,7 @@ class BasicBlock(nn.Module):
         self.gn1 = nn.GroupNorm(4, planes)  # 4 groups for normalization
         self.conv2 = conv3x3(planes, planes)
         self.gn2 = nn.GroupNorm(4, planes)  # 4 groups for normalization
+        self.leaky_relu = nn.LeakyReLU(0.01, inplace=True)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
@@ -21,10 +22,10 @@ class BasicBlock(nn.Module):
             )
 
     def forward(self, x):
-        out = nn.LeakyReLU(0.01)(self.gn1(self.conv1(x)))
+        out = self.leaky_relu(self.gn1(self.conv1(x)))
         out = self.gn2(self.conv2(out))
         out += self.shortcut(x)
-        out = nn.LeakyReLU(0.01)(out)
+        out = self.leaky_relu(out)
         return out
 
 def convnet(num_classes):
@@ -79,6 +80,7 @@ def resnet20(num_classes):
 
             self.conv1 = conv3x3(3, 16)
             self.gn1 = nn.GroupNorm(4, 16)  # 4 groups for 16 channels
+            self.leaky_relu = nn.LeakyReLU(0.01, inplace=True)
             self.layer1 = self._make_layer(16, 3, stride=1)
             self.layer2 = self._make_layer(32, 3, stride=2)
             self.layer3 = self._make_layer(64, 3, stride=2)
@@ -93,7 +95,7 @@ def resnet20(num_classes):
             return nn.Sequential(*layers)
 
         def forward(self, x):
-            out = nn.LeakyReLU(0.01)(self.gn1(self.conv1(x)))
+            out = self.leaky_relu(self.gn1(self.conv1(x)))
             out = self.layer1(out)
             out = self.layer2(out)
             out = self.layer3(out)
