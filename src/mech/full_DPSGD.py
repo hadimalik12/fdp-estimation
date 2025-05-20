@@ -584,6 +584,11 @@ class DPSGD_Estimator(_GeneralNaiveEstimator):
         self.output_["eps_lower_bound"] = self.compute_eps_lower_bound(delta = self.output_["delta"])
         
         return self.output_  
+    
+    def compute_eps_lower_bound(self, delta = 1e-5):
+        mu = self.output_["mu"]
+        eps = find_eps(mu, delta)
+        return eps
 
 
 class DPSGD_PTLREstimator(_PTLREstimator):
