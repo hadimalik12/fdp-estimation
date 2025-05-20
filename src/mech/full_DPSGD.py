@@ -24,7 +24,7 @@ from collections import OrderedDict
 from estimator.basic import _GeneralNaiveEstimator
 from estimator.ptlr import _PTLREstimator
 from auditor.basic import _GeneralNaiveAuditor
-from analysis.tradeoff_Gaussian import Gaussian_curve
+from analysis.tradeoff_Gaussian import Gaussian_curve, find_eps, find_optimal_mu
 
 import os
 import gc
@@ -571,11 +571,45 @@ class DPSGD_Estimator(_GeneralNaiveEstimator):
         test_kwargs["sgd_alg"]["internal_result_path"] = os.path.join(kwargs["sgd_alg"]["internal_result_path"], "test")
         self.test_sampler = DPSGDSampler(test_kwargs)
 
+    def build(self, eta, nworkers=1, classifier_args=None):
+        output = super().build(eta, nworkers, classifier_args)
+
+        alpha_values = copy.deepcopy(output["alpha"])
+        beta_values = copy.deepcopy(output["beta"])
+
+        mu = find_optimal_mu(alpha_values, beta_values)
+        self.output_["mu"] = mu
+
+        self.output_["delta"] = 1e-5
+        self.output_["eps_lower_bound"] = self.compute_eps_lower_bound(delta = self.output_["delta"])
+        
+        return self.output_  
+
 
 class DPSGD_PTLREstimator(_PTLREstimator):
     def __init__(self, kwargs):
         super().__init__(kwargs=kwargs)
         self.sampler = DPSGDSampler(kwargs)
+    
+    def build(self, eta_max = 15):
+        # First call parent class's build function
+        output = super().build(eta_max = eta_max)
+        
+        alpha_values = copy.deepcopy(output["alpha"])
+        beta_values = copy.deepcopy(output["beta"])
+
+        mu = find_optimal_mu(alpha_values, beta_values)
+        self.output_["mu"] = mu
+
+        self.output_["delta"] = 1e-5
+        self.output_["eps_lower_bound"] = self.compute_eps_lower_bound(delta = self.output_["delta"])
+        
+        return self.output_  
+    
+    def compute_eps_lower_bound(self, delta = 1e-5):
+        mu = self.output_["mu"]
+        eps = find_eps(mu, delta)
+        return eps
 
 
 class DPSGD_Auditor(_GeneralNaiveAuditor):
