@@ -161,18 +161,6 @@ After completing the preprocessing steps, you can audit and estimate the privacy
    - Navigate to `notebook/auditor/`
    - Open `auditing_fdp_curve_full_sgd_cnn.ipynb` to perform privacy auditing
 
-Each notebook includes:
-- Detailed explanations of the methodology
-- Code examples for running the analysis
-- Visualization of results
-- Comparison with theoretical bounds (where applicable)
-
-To run the notebooks:
-1. Ensure your Jupyter environment is activated
-2. Navigate to the appropriate directory
-3. Open the notebook in JupyterLab
-4. Run the cells sequentially to reproduce the analysis
-
 ### Customization
 
 One of the key advantages of our estimation and auditing framework is its black-box nature, allowing users to experiment with different classifiers and mechanisms in a plug-and-play manner. Below, we discuss how to customize and extend the framework:
