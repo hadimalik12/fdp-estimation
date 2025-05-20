@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import logging
 import os
 import sys
 
@@ -15,25 +14,12 @@ from tqdm import tqdm
 # Navigate to the parent directory of the project structure
 project_dir = os.path.abspath(os.getcwd())
 src_dir = os.path.join(project_dir, 'src')
-fig_dir = os.path.join(project_dir, 'fig')
-data_dir = os.path.join(project_dir, 'data')
-log_dir = os.path.join(project_dir, 'log')
-os.makedirs(fig_dir, exist_ok=True)
-os.makedirs(log_dir, exist_ok=True)
 
 # Add the src directory to sys.path
 sys.path.append(src_dir)
 
 from mech.full_DPSGD import get_white_image, get_black_image
 from mech.model_architecture import convnet, resnet20
-
-logging.basicConfig(
-    format="%(asctime)s:%(levelname)s:%(message)s",
-    datefmt="%m/%d/%Y %H:%M:%S",
-    stream=sys.stdout,
-)
-logger = logging.getLogger("dp_model_export")
-logger.setLevel(logging.INFO)
 
 def train(model, train_loader, optimizer, device):
     model.train()
@@ -89,7 +75,7 @@ def evaluate_image_loss(tensor_image, label, model, device):
     
     return loss.item()
 
-def compute_accuracy_privacy_point(batch_size=512, epoch_list=[1], lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", database_size=None, database_name="white_cifar10", model_class = convnet): 
+def compute_accuracy_privacy_point(data_dir, batch_size=512, epoch_list=[1], lr=0.1, sigma=1.0, max_grad_norm=1.0, device="cpu", database_size=None, database_name="white_cifar10", model_class = convnet, delta = 1e-5): 
     torch.set_num_threads(1)
     torch.manual_seed(os.getpid())
 
@@ -151,9 +137,9 @@ def compute_accuracy_privacy_point(batch_size=512, epoch_list=[1], lr=0.1, sigma
             final_losses.append(evaluate_loss(model, eval_loader, device))
             white_image_losses.append(evaluate_image_loss(get_white_image(tensor_image = True), 0, model, device))
             black_image_losses.append(evaluate_image_loss(get_black_image(tensor_image = True), 0, model, device))
-            epsilon = privacy_engine.accountant.get_epsilon(delta=1e-5)
+            epsilon = privacy_engine.accountant.get_epsilon(delta=delta)
             epsilons.append(epsilon)
-            deltas.append(1e-5)
+            deltas.append(delta)
 
             print(f"Final loss: {final_losses}")
             print(f"White image loss: {white_image_losses}")
@@ -163,7 +149,9 @@ def compute_accuracy_privacy_point(batch_size=512, epoch_list=[1], lr=0.1, sigma
     return final_losses, white_image_losses, black_image_losses, epsilons, deltas
 
 if __name__ == "__main__":
-    final_losses, white_image_losses, black_image_losses, epsilons, deltas = compute_accuracy_privacy_point(epoch_list=[1], model_class=resnet20, database_size=1000, database_name="white_cifar10")
+    data_dir = os.path.join(project_dir, 'data')
+
+    final_losses, white_image_losses, black_image_losses, epsilons, deltas = compute_accuracy_privacy_point(data_dir=data_dir, epoch_list=[1], model_class=resnet20, database_size=1000, database_name="white_cifar10")
 
     print(f"Loss on full dataset: {final_losses}")
     print(f"Loss on white image: {white_image_losses}" + f"Loss on black image: {black_image_losses}")

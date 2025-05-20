@@ -12,7 +12,7 @@ This project introduces two novel estimators for $f$-DP:
 2. **Classifier-Based Estimator (Baybox Estimator)**  
    Uses a binary classification approach (e.g., k-Nearest Neighbors) to approximate privacy guarantees. This method, referred to as the Baybox estimator, is detailed in Algorithm 1 of our paper.
 
-Both these approaches can provide an estimate of the f-differential privacy curve. On top of these estimators, we offer an **auditor** that merges the above techniques to statistically test an $f$-DP statement with theoretical guarantees—allowing one to either reject or fail to reject a claim of $f$-DP based on both hypothesis testing theory and learning theory.
+Both these approaches can provide an estimate of the f-differential privacy curve. On top of these estimators, we offer an **auditor** that merges the above techniques to statistically test an $f$-DP statement with theoretical guarantees—allowing one to either reject or fail to reject a claim of $f$-DP based on both hypothesis testing theory and learning theory.
 
 This repository demonstrates the following:
 
@@ -121,6 +121,57 @@ jupyter lab stop
 ### Running the Examples
 
 To learn how to use the API for the estimator and auditor, navigate to the `notebooks` folder. This directory contains three demonstration packages, each corresponding to a different component: the PTLR-based estimator, the classifier-based estimator, and the auditor. Within each folder, we provide example scripts illustrating how to call the API for estimation and inference tasks. Additionally, we demonstrate how to validate estimation and inference results, perform accuracy analysis, and compare outcomes against theoretical expectations.
+
+#### Running the Stochastic Gradient Descent Example
+
+This section describes how to run the Stochastic Gradient Descent (SGD) experiment. The experiment involves training multiple SGD models and use them to estimate/audit the SGD algorithm under test's privacy bounds. Please be aware that this process will generate thousands of model files, so ensure you have ample disk space available. Additionally, the experiment may require several hours to complete.
+
+To begin, open a terminal and navigate to the project's root directory. Execute the following command to generate DPSGD models:
+```bash
+   ./scripts/sgd_experiment/run_generate_sgd_models.sh
+```
+To view available parameters, open the script:
+```bash
+cat scripts/sgd_experiment/run_generate_sgd_models.sh
+```
+
+Run the following command to generate samples for auditing. This process uses the model created in the previous step and will take a few minutes to compelete.
+```bash
+   ./scripts/sgd_experiment/run_generate_sgd_samples.sh
+```
+To view available parameters, open the script:
+```bash
+cat scripts/sgd_experiment/run_generate_sgd_samples.sh
+```
+
+##### Running the Analysis Notebooks
+
+After completing the preprocessing steps, you can audit and estimate the privacy of SGD with examples in the provided Jupyter notebooks.
+
+1. **PTLR-based Estimation**
+   - Navigate to `notebook/ptlr estimation/`
+   - Open `estimating_fdp_curve_full_sgd_cnn.ipynb` for FDP curve estimation
+   - Open `sgd_cnn_theoretical_upperbound_vs_estimated_lowerbound.ipynb` to compare theoretical and estimated bounds
+
+2. **Classifier-based Estimation**
+   - Navigate to `notebook/classifier-based estimation/`
+   - Open `estimating_fdp_curve_full_sgd_cnn.ipynb` to run the classifier-based estimation
+
+3. **Privacy Auditing**
+   - Navigate to `notebook/auditor/`
+   - Open `auditing_fdp_curve_full_sgd_cnn.ipynb` to perform privacy auditing
+
+Each notebook includes:
+- Detailed explanations of the methodology
+- Code examples for running the analysis
+- Visualization of results
+- Comparison with theoretical bounds (where applicable)
+
+To run the notebooks:
+1. Ensure your Jupyter environment is activated
+2. Navigate to the appropriate directory
+3. Open the notebook in JupyterLab
+4. Run the cells sequentially to reproduce the analysis
 
 ### Customization
 
