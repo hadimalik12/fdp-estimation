@@ -2,7 +2,10 @@ from functools import partial
 import logging
 import secrets
 import multiprocessing
-
+import os
+import sys
+import argparse
+import ast
 import numpy as np
 from utils.utils import DUMMY_CONSTANT, _ensure_2dim
 from numpy.random import MT19937, RandomState
@@ -26,7 +29,6 @@ from estimator.ptlr import _PTLREstimator
 from auditor.basic import _GeneralNaiveAuditor
 from analysis.tradeoff_Gaussian import Gaussian_curve, find_eps, find_optimal_mu
 
-import os
 import gc
 torch.set_num_threads(1)
 
@@ -42,6 +44,14 @@ def train(model, train_loader, optimizer, device):
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
+        
+        # Clear memory after each batch
+        del images, target, output, loss
+    
+    # Final cleanup after training
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
 def evaluate_loss(model, dataloader, device):
     model.eval()
@@ -55,6 +65,15 @@ def evaluate_loss(model, dataloader, device):
             loss = loss_fn(logits, y)
             total_loss += loss.item() * X.size(0)
             total_samples += X.size(0)
+            
+            # Clear memory after each batch
+            del X, y, logits, loss
+    
+    # Final cleanup after evaluation
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+    
     return total_loss / total_samples
 
 def generate_params(
@@ -203,12 +222,30 @@ def _generate_sample_worker(args):
         model = sampler.load_model(model_path)
         score = sampler.auditing_approach(model)
         results.append(score)
+        
+        # Clear model after each iteration
+        del model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+    
+    # Final cleanup
+    del sampler
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+    
     return results
     
 def parallel_generate_samples(sampler_kwargs, model_paths, num_workers=1, batch_size=50):
     """Load models in parallel, each on a single CPU thread."""
     print(f"\nLoading and projecting models with {num_workers} workers:")
-    with multiprocessing.Pool(processes=num_workers) as pool:
+    
+    # Ensure we're using spawn method
+    multiprocessing.set_start_method('spawn', force=True)
+
+    ctx = multiprocessing.get_context('spawn')
+    with ctx.Pool(processes=num_workers) as pool:
         args_list = [
             (sampler_kwargs, model_paths[i:i+batch_size])
             for i in range(0, len(model_paths), batch_size)
@@ -228,7 +265,11 @@ def parallel_generate_samples(sampler_kwargs, model_paths, num_workers=1, batch_
 
 def parallel_train_models(sampler_kwargs, num_generating_samples, num_workers=1):
     """Train num_generating_samples models in parallel, each on a single CPU thread."""
-    with multiprocessing.Pool(processes=num_workers) as pool:
+    # Ensure we're using spawn method
+    multiprocessing.set_start_method('spawn', force=True)
+    
+    ctx = multiprocessing.get_context('spawn')
+    with ctx.Pool(processes=num_workers) as pool:
         # Combine both positive and negative args into one list
         args_list = [(sampler_kwargs, False)] * num_generating_samples + \
                    [(sampler_kwargs, True)] * num_generating_samples
@@ -464,6 +505,17 @@ class DPSGDSampler:
                 model_path = os.path.join(self.model_folder_mapping[epoch], model_name)
                 torch.save(model.state_dict(), model_path)
                 self.logger.debug(f"Model saved to {model_path}")
+                
+                # Clear memory after saving
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                gc.collect()
+
+        # Final cleanup
+        del train_loader, optimizer, privacy_engine
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
 
         return model, model_path
     
