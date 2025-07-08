@@ -12,7 +12,7 @@ class BasicBlock(nn.Module):
         self.gn1 = nn.GroupNorm(4, planes)  # 4 groups for normalization
         self.conv2 = conv3x3(planes, planes)
         self.gn2 = nn.GroupNorm(4, planes)  # 4 groups for normalization
-        self.leaky_relu = nn.LeakyReLU(0.01, inplace=True)
+        self.leaky_relu = nn.LeakyReLU(0.01, inplace=False)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion * planes:
@@ -50,22 +50,22 @@ def convnet_balanced(num_classes):
     return nn.Sequential(
         nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
         nn.GroupNorm(4, 32),  # 4 groups for 32 channels
-        nn.LeakyReLU(0.01, inplace=True),
+        nn.LeakyReLU(0.01, inplace=False),
         nn.AvgPool2d(kernel_size=2, stride=2),
 
         nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
         nn.GroupNorm(8, 64),
-        nn.LeakyReLU(0.01, inplace=True),
+        nn.LeakyReLU(0.01, inplace=False),
         nn.AvgPool2d(kernel_size=2, stride=2),
 
         nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
         nn.GroupNorm(8, 64),
-        nn.LeakyReLU(0.01, inplace=True),
+        nn.LeakyReLU(0.01, inplace=False),
         nn.AvgPool2d(kernel_size=2, stride=2),
 
         nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
         nn.GroupNorm(8, 128),
-        nn.LeakyReLU(0.01, inplace=True),
+        nn.LeakyReLU(0.01, inplace=False),
         nn.AdaptiveAvgPool2d((1, 1)),
 
         nn.Flatten(start_dim=1, end_dim=-1),
@@ -80,7 +80,7 @@ def resnet20(num_classes):
 
             self.conv1 = conv3x3(3, 16)
             self.gn1 = nn.GroupNorm(4, 16)  # 4 groups for 16 channels
-            self.leaky_relu = nn.LeakyReLU(0.01, inplace=True)
+            self.leaky_relu = nn.LeakyReLU(0.01, inplace=False)
             self.layer1 = self._make_layer(16, 3, stride=1)
             self.layer2 = self._make_layer(32, 3, stride=2)
             self.layer3 = self._make_layer(64, 3, stride=2)
