@@ -22,20 +22,17 @@ class InferenceSampler(SubsamplingSampler):
         self.x0 = kwargs["dataset"]["x0_logits"] #50,000 x 10
         self.x1 = kwargs["dataset"]["x1_logits"]
     
-    def sample_from_logits(self, logits):
-        probs = np.exp(logits) / np.sum(np.exp(logits), axis=1, keepdims=True)
-        sampled = [np.random.choice(10, p=p) for p in probs]
-        return np.array(sampled)
+    def sample_from_logits(self, logits, num_samples):
+        probs = np.exp(logits) / np.sum(np.exp(logits))
+        sampled = np.random.choice(10, size=num_samples, p=probs)
+        return sampled
 
     # Draws and preprocesses samples from stored inference logits
     def preprocess(self, num_samples):
-        idx0 = self.rng.choice(len(self.x0), size=num_samples, replace=True) #10000 indices [0, 1, 500]
-        idx1 = self.rng.choice(len(self.x1), size=num_samples, replace=True) 
-        s0 = self.x0[idx0] #10,000 x 10
-        s1 = self.x1[idx1]
-        if s0.ndim > 1:
-            s0 = self.sample_from_logits(s0)
-            s1 = self.sample_from_logits(s1)
+        s0_logits = self.x0.squeeze()
+        s1_logits = self.x1.squeeze() 
+        s0 = self.sample_from_logits(s0_logits, num_samples)
+        s1 = self.sample_from_logits(s1_logits, num_samples)
         self.samples_P = s0.reshape(-1, 1)
         self.samples_Q = s1.reshape(-1, 1)
         self.computed_samples = num_samples

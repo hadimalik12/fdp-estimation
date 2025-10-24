@@ -14,6 +14,9 @@ import numpy as np
 import os
 import random
 
+CIFAR_MEAN = torch.tensor([0.4914, 0.4822, 0.4465])
+CIFAR_STD = torch.tensor([0.2023, 0.1994, 0.2010])
+
 # Defines a 4-layer CNN model
 class CNN4(nn.Module):
     def __init__(self):
@@ -41,8 +44,8 @@ class Class0Override(Dataset):
     def __init__(self, base, color="white"):
         self.base = base
         self.color = color
-        self.mean = torch.tensor([0.4914, 0.4822, 0.4465]).view(3,1,1)
-        self.std  = torch.tensor([0.2023, 0.1994, 0.2010]).view(3,1,1)
+        self.mean = CIFAR_MEAN.view(3,1,1)
+        self.std  = CIFAR_STD.view(3,1,1)
 
     def __len__(self):
         return len(self.base)
@@ -95,6 +98,15 @@ def save_logits(model, dataset, outfile):
     np.save(outfile, np.concatenate(all_logits, axis=0))
 
 
+def save_single_image_logits(model, image, outfile):
+    """Run inference on a single image tensor and save logits to disk."""
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.eval()
+    with torch.no_grad():
+        logits = model(image.unsqueeze(0).to(device)).cpu().numpy()
+    np.save(outfile, logits)
+
+
 # Selects a small subset with k samples per class
 def subset_k_per_class(dataset, k=10):
     label_indices = {}
@@ -134,7 +146,8 @@ if __name__ == "__main__":
     os.makedirs("outputs", exist_ok=True)
     torch.save(modelA.state_dict(), "outputs/modelA.pth")
 
-    save_logits(modelA, cifar_white, "outputs/logits_modelA_white.npy")
+    single_white_img, _ = cifar_white[0]
+    save_single_image_logits(modelA, single_white_img, "outputs/logits_modelA_white.npy")
 
     print("\nFine-tuning Model A → Model B (black class-0, small LR & subset)...")
     small_black_subset = subset_k_per_class(cifar_black, k=10)
@@ -146,7 +159,7 @@ if __name__ == "__main__":
 
     torch.save(modelB.state_dict(), "outputs/modelB.pth")
 
-    save_logits(modelB, cifar_white, "outputs/logits_modelB_black.npy")
+    save_single_image_logits(modelB, single_white_img, "outputs/logits_modelB_black.npy")
 
     print("\nSaved:")
     print(" - Model A: outputs/modelA.pth")
