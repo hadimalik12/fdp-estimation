@@ -6,11 +6,14 @@ Inference (save logits) on the remaining data
 No image replacement.
 """
 
+import os, sys
 import torch
 from torch.utils.data import random_split, DataLoader
 from torchvision import datasets, transforms
-from mech.CNN_inference import CNN4, train_model, save_logits
-import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from CNN_inference import CNN4, train_model, save_logits
 
 if __name__ == "__main__":
     os.makedirs("outputs", exist_ok=True)
@@ -37,17 +40,15 @@ if __name__ == "__main__":
     print("Training M0 on subset A...")
     M0 = CNN4()
     M0 = train_model(M0, train_dl_a, test_dl, epochs=10, lr=0.01)
-    torch.save(M0.state_dict(), "outputs/M0.pth")
-
+    
     # Fine-tune M1 on unseen subset B
     print("\nFine-tuning M1 on subset B...")
     M1 = CNN4()
-    M1.load_state_dict(torch.load("outputs/M0.pth"))
+    M1.load_state_dict(M0.state_dict())
     M1 = train_model(M1, train_dl_b, test_dl, epochs=5, lr=0.001)
-    torch.save(M1.state_dict(), "outputs/M1.pth")
 
     # Save logits for inference comparison
-    save_logits(M0, testset, "outputs/logits_M0.npy")
-    save_logits(M1, testset, "outputs/logits_M1.npy")
+    save_logits(M0, testset, "outputs/exp1_logits_M0.npy")
+    save_logits(M1, testset, "outputs/exp1_logits_M1.npy")
 
     print("\nSaved logits for M0 and M1 in outputs/")
